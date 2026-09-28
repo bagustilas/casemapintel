@@ -1,4 +1,4 @@
-# CaseIntel — Analisis & Pemetaan Perkara Pidana (Gelar Perkara)
+# CaseMapIntel — Analisis & Pemetaan Perkara Pidana (Gelar Perkara)
 
 Aplikasi web modern berbasis **Next.js 16 (App Router, TypeScript, Tailwind CSS)** dengan backend **Supabase** untuk praktisi hukum (Advokat, Penyidik Kepolisian, Jaksa Penuntut Umum) dalam melakukan analisis, pemetaan relasi, audit praperadilan, dan penyusunan risalah gelar perkara pidana secara terstruktur.
 
