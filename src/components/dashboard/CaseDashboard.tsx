@@ -80,31 +80,32 @@ export function CaseDashboard() {
   };
 
   const handleNewCaseClick = () => {
-    const res = newCase();
-    if (!res.success) {
+    if (isDemoMode) {
       setIsUpgradeModalOpen(true);
+      return;
     }
+    newCase();
   };
 
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Demo Mode Notice Banner if user is in trial/demo */}
       {isDemoMode && (
-        <div className="rounded-3xl border border-amber-300 bg-gradient-to-r from-amber-50 via-amber-100/60 to-amber-50 p-5 shadow-sm dark:border-amber-900/60 dark:from-amber-950/40 dark:via-amber-900/20 dark:to-amber-950/40 text-amber-950 dark:text-amber-200">
+        <div className="rounded-3xl border border-amber-300 bg-gradient-to-r from-amber-50 via-amber-100/70 to-amber-50 p-5 shadow-sm dark:border-amber-900/60 dark:from-amber-950/40 dark:via-amber-900/20 dark:to-amber-950/40 text-amber-950 dark:text-amber-200 animate-in fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-200/80 text-amber-900 dark:bg-amber-900 dark:text-amber-200 flex-shrink-0 mt-0.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-200/80 text-amber-900 dark:bg-amber-900 dark:text-amber-200 flex-shrink-0 mt-0.5 shadow-sm">
                 <Lock className="h-5 w-5" />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold font-serif">Mode Demo / Uji Coba Terbatas</h3>
                   <span className="rounded-full bg-amber-200 px-2 py-0.2 text-[10px] font-bold text-amber-900 dark:bg-amber-900 dark:text-amber-200 font-mono">
-                    TRIAL
+                    TRIAL DEMO
                   </span>
                 </div>
-                <p className="text-xs text-amber-900/80 dark:text-amber-200/80 max-w-2xl leading-relaxed">
-                  Pembuatan analisis perkara baru <strong>dikunci</strong> dalam mode demo. Anda dapat meninjau, mengedit simulasi graf, dan mengevaluasi perkara contoh. Masukkan Kunci Lisensi PRO atau Law Firm untuk membuat perkara baru tanpa batas.
+                <p className="text-xs text-amber-900/90 dark:text-amber-200/90 max-w-2xl leading-relaxed">
+                  Fitur pembuatan analisa perkara baru <strong>dinonaktifkan (disabled)</strong> dalam mode demo. Anda dapat meninjau, mengedit, memutar simulasi graf relasi, dan mencetak laporan dari berkas perkara contoh. Untuk membuat analisa perkara baru tanpa batas, silakan aktifkan Lisensi PRO.
                 </p>
               </div>
             </div>
@@ -138,28 +139,29 @@ export function CaseDashboard() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* New Case Button with Demo Mode Badge */}
-          <button
-            onClick={handleNewCaseClick}
-            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold shadow-md transition ${
-              isDemoMode
-                ? 'bg-slate-800 text-slate-200 hover:bg-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700'
-                : 'bg-amber-700 text-white hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700'
-            }`}
-            title={
-              isDemoMode
-                ? 'Pembuatan perkara baru dikunci pada Mode Demo. Klik untuk memasukkan Kunci Lisensi PRO.'
-                : 'Buat analisis perkara baru'
-            }
-          >
-            {isDemoMode ? <Lock className="h-4 w-4 text-amber-400" /> : <FolderPlus className="h-4 w-4" />}
-            <span>+ Buat Analisis Perkara Baru</span>
-            {isDemoMode && (
-              <span className="rounded bg-amber-400/20 px-1.5 py-0.2 text-[9px] font-bold text-amber-300 font-mono">
-                PRO
+          {/* New Case Button with Disabled state in Demo Mode */}
+          {isDemoMode ? (
+            <button
+              type="button"
+              onClick={() => setIsUpgradeModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-500 shadow-sm hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-400 dark:hover:bg-slate-800 transition cursor-pointer"
+              title="Pembuatan perkara baru dinonaktifkan pada Mode Demo. Klik untuk mengaktifkan Lisensi PRO."
+            >
+              <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <span>+ Buat Analisis Perkara Baru</span>
+              <span className="rounded bg-amber-200/80 px-1.5 py-0.2 text-[9px] font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-300 font-mono">
+                TERKUNCI
               </span>
-            )}
-          </button>
+            </button>
+          ) : (
+            <button
+              onClick={handleNewCaseClick}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-700 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700 transition"
+            >
+              <FolderPlus className="h-4 w-4" />
+              <span>+ Buat Analisis Perkara Baru</span>
+            </button>
+          )}
 
           <button
             onClick={loadSampleCase}
@@ -253,15 +255,26 @@ export function CaseDashboard() {
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
             {searchQuery
               ? 'Coba gunakan kata kunci pencarian lain atau setel ulang filter.'
-              : 'Mulai dengan membuat analisis perkara baru atau muat contoh data penggelapan.'}
+              : 'Mulai dengan membuka data contoh perkara penggelapan atau aktifkan lisensi Pro.'}
           </p>
           <div className="flex gap-2 mt-4">
-            <button
-              onClick={handleNewCaseClick}
-              className="rounded-xl bg-amber-700 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-800 transition"
-            >
-              + Perkara Baru
-            </button>
+            {isDemoMode ? (
+              <button
+                type="button"
+                onClick={() => setIsUpgradeModalOpen(true)}
+                className="rounded-xl border border-slate-300 bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 flex items-center gap-1.5"
+              >
+                <Lock className="h-3.5 w-3.5 text-amber-600" />
+                <span>+ Perkara Baru (Terkunci)</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleNewCaseClick}
+                className="rounded-xl bg-amber-700 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-800 transition"
+              >
+                + Perkara Baru
+              </button>
+            )}
             <button
               onClick={loadSampleCase}
               className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-300 hover:bg-slate-100 transition"
@@ -400,7 +413,7 @@ export function CaseDashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-5 animate-in zoom-in-95">
             <div className="flex justify-between items-start">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold shadow-sm">
                 <Lock className="h-6 w-6" />
               </div>
               <button
@@ -413,10 +426,10 @@ export function CaseDashboard() {
 
             <div className="space-y-2">
               <h3 className="font-serif text-lg font-bold text-slate-900 dark:text-white">
-                Fitur Terbatas pada Mode Demo
+                Pembuatan Perkara Baru Dinonaktifkan
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Pembuatan berkas perkara baru tidak tersedia pada <strong>Mode Demo / Uji Coba</strong>. Anda tetap dapat meninjau, mengedit, dan mengekspor berkas contoh yang telah disediakan.
+                Anda saat ini berada dalam <strong>Mode Demo / Uji Coba</strong>. Pembuatan berkas perkara baru terkunci untuk akun demo. Anda tetap dapat meninjau, mengedit narasi &amp; bukti, serta menjalankan simulasi graf pada perkara contoh.
               </p>
             </div>
 
@@ -427,7 +440,7 @@ export function CaseDashboard() {
               <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
-                  <span>Buat dan simpan analisis perkara baru tanpa batas</span>
+                  <span>Buat dan kelola analisis perkara baru tanpa batas</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
