@@ -179,6 +179,7 @@ export interface ScoreBreakdown {
 // -------------------------------------------------------------
 
 export type UserRole =
+  | 'Super Admin / Pengelola Sistem'
   | 'Advokat / Penasihat Hukum'
   | 'Penyidik Kepolisian'
   | 'Jaksa Penuntut Umum'
@@ -186,7 +187,7 @@ export type UserRole =
   | 'Konsultan Hukum / Paralegal'
   | 'Pengguna Umum / Peneliti';
 
-export type LicenseTier = 'TRIAL' | 'PRO' | 'FIRM_ENTERPRISE' | 'LIFETIME';
+export type LicenseTier = 'TRIAL' | 'PRO' | 'FIRM_ENTERPRISE' | 'LIFETIME' | 'SUPERADMIN';
 
 export interface LicenseInfo {
   key: string;
@@ -212,6 +213,7 @@ export interface UserSession {
   deviceId: string;
   deviceName: string;
   isCloudSyncActive: boolean;
+  isSuperAdmin: boolean;
   loginAt: string;
 }
 

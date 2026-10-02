@@ -2,8 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { UserRole, LicenseTier } from '@/types/case';
-import { PRESET_LICENSES, generateNewLicenseKey } from '@/lib/license';
+import { UserRole } from '@/types/case';
 import {
   Scale,
   Key,
@@ -12,15 +11,11 @@ import {
   Building,
   ShieldCheck,
   Sparkles,
-  Zap,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle,
   Lock,
   ArrowRight,
   ShieldAlert,
-  Copy,
-  Check,
+  Shield,
+  CheckCircle2,
 } from 'lucide-react';
 
 const USER_ROLES: UserRole[] = [
@@ -33,23 +28,21 @@ const USER_ROLES: UserRole[] = [
 ];
 
 export function LoginView() {
-  const { login, quickLoginAs, isCloudConnected } = useAuth();
+  const { login, loginAsSuperAdmin, quickLoginAs, isCloudConnected } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'login' | 'quick' | 'generator'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'quick' | 'admin'>('login');
   const [waNumber, setWaNumber] = useState('');
   const [licenseKey, setLicenseKey] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<UserRole>('Advokat / Penasihat Hukum');
   const [organization, setOrganization] = useState('');
 
+  // Super Admin PIN State
+  const [adminPin, setAdminPin] = useState('');
+  const [adminWa, setAdminWa] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ success: boolean; message: string } | null>(null);
-
-  // Generator State
-  const [genTier, setGenTier] = useState<LicenseTier>('TRIAL');
-  const [genDays, setGenDays] = useState(30);
-  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,29 +57,23 @@ export function LoginView() {
     }
   };
 
+  const handleSuperAdminSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setFeedback(null);
+
+    const res = await loginAsSuperAdmin(adminPin, adminWa || '0800-SUPER-ADMIN');
+    setIsSubmitting(false);
+
+    if (!res.success) {
+      setFeedback(res);
+    }
+  };
+
   const handleQuickLogin = async (key: string, chosenRole: UserRole) => {
     setIsSubmitting(true);
     await quickLoginAs(key, chosenRole);
     setIsSubmitting(false);
-  };
-
-  const handleGenerateKey = () => {
-    const lic = generateNewLicenseKey(genTier, genDays);
-    setGeneratedKey(lic.key);
-    setIsCopied(false);
-  };
-
-  const handleCopyKey = () => {
-    if (!generatedKey) return;
-    navigator.clipboard.writeText(generatedKey);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2500);
-  };
-
-  const handleUseGeneratedKey = () => {
-    if (!generatedKey) return;
-    setLicenseKey(generatedKey);
-    setActiveTab('login');
   };
 
   return (
@@ -100,11 +87,11 @@ export function LoginView() {
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-950 dark:text-white font-serif tracking-tight">
-            CASEINTEL
+            CASEMAPINTEL
           </h1>
 
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
-            Platform intelijen perkara pidana untuk Advokat, Penyidik, dan Jaksa. Masukkan nomor WhatsApp &amp; Kunci Lisensi Anda untuk mengakses berkas perkara.
+            Platform intelijen perkara pidana untuk Advokat, Penyidik, dan Jaksa. Masukkan nomor WhatsApp &amp; Kunci Lisensi resmi Anda untuk mengakses berkas perkara.
           </p>
         </div>
 
@@ -143,23 +130,23 @@ export function LoginView() {
                   }`}
                 >
                   <Sparkles className="h-3.5 w-3.5 text-amber-600" />
-                  <span>Coba Demo 1-Klik</span>
+                  <span>Mode Demo</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    setActiveTab('generator');
+                    setActiveTab('admin');
                     setFeedback(null);
                   }}
                   className={`pb-3 px-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
-                    activeTab === 'generator'
-                      ? 'border-amber-700 text-amber-800 dark:border-amber-400 dark:text-amber-400'
+                    activeTab === 'admin'
+                      ? 'border-rose-700 text-rose-800 dark:border-rose-400 dark:text-rose-400'
                       : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400'
                   }`}
                 >
-                  <Key className="h-3.5 w-3.5 text-amber-600" />
-                  <span>Kunci Lisensi &amp; Uji Coba</span>
+                  <Shield className="h-3.5 w-3.5 text-rose-600" />
+                  <span>Super Admin</span>
                 </button>
               </div>
 
@@ -171,7 +158,7 @@ export function LoginView() {
                 </div>
               )}
 
-              {/* 1. FORM LOGIN */}
+              {/* 1. FORM LOGIN PENGGUNA */}
               {activeTab === 'login' && (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
@@ -194,25 +181,9 @@ export function LoginView() {
                   <div>
                     <div className="flex justify-between items-center mb-1.5">
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Kunci Lisensi CASEINTEL <span className="text-rose-500">*</span>
+                        Kunci Lisensi Resmi <span className="text-rose-500">*</span>
                       </label>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setLicenseKey('CASEINTEL-TRIAL-30D')}
-                          className="text-[11px] font-mono text-slate-500 hover:underline dark:text-slate-400"
-                        >
-                          Isi Kunci Demo
-                        </button>
-                        <span className="text-slate-300">·</span>
-                        <button
-                          type="button"
-                          onClick={() => setLicenseKey('CASEINTEL-PRO-2026')}
-                          className="text-[11px] font-mono text-amber-700 font-bold hover:underline dark:text-amber-400"
-                        >
-                          Isi Kunci PRO
-                        </button>
-                      </div>
+                      <span className="text-[10.5px] text-slate-400">Diberikan oleh Super Admin / Kantor</span>
                     </div>
                     <div className="relative">
                       <Key className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
@@ -221,7 +192,7 @@ export function LoginView() {
                         required
                         value={licenseKey}
                         onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
-                        placeholder="mis. CASEINTEL-PRO-2026 atau CASEINTEL-TRIAL-30D"
+                        placeholder="mis. CASEINTEL-PRO-2026 atau lisensi Anda"
                         className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-xs sm:text-sm font-mono font-bold uppercase text-slate-900 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                       />
                     </div>
@@ -289,183 +260,100 @@ export function LoginView() {
                 </form>
               )}
 
-              {/* 2. QUICK 1-CLICK DEMO LOGIN */}
+              {/* 2. SINGLE DEMO MODE ACCESS */}
               {activeTab === 'quick' && (
                 <div className="space-y-3">
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Pilih salah satu mode masuk instan untuk menguji coba fitur CaseIntel:
+                    Masuk instan ke sistem untuk mengevaluasi data perkara contoh &amp; simulasi graf:
                   </p>
 
                   <div className="space-y-2.5">
-                    {/* Mode Demo / Trial */}
+                    {/* Satu-satunya Akun Demo Terbatas */}
                     <button
                       type="button"
                       disabled={isSubmitting}
-                      onClick={() => handleQuickLogin('CASEINTEL-TRIAL-30D', 'Pengguna Umum / Peneliti')}
-                      className="w-full rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-4 text-left hover:border-amber-500 hover:bg-amber-100/50 dark:border-amber-800 dark:bg-amber-950/40 dark:hover:border-amber-500/50 transition flex items-center justify-between group"
+                      onClick={() => handleQuickLogin('CASEINTEL-DEMO-TRIAL', 'Pengguna Umum / Peneliti')}
+                      className="w-full rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-4 text-left hover:border-amber-500 hover:bg-amber-100/50 dark:border-amber-800 dark:bg-amber-950/40 dark:hover:border-amber-500/50 transition flex items-center justify-between group shadow-sm"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-200 text-amber-900 font-bold text-base dark:bg-amber-900 dark:text-amber-200">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-200 text-amber-900 font-bold text-base dark:bg-amber-900 dark:text-amber-200 shadow-sm">
                           <Lock className="h-5 w-5" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                              Masuk Mode Demo / Uji Coba
+                            <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                              Masuk Mode Demo (Kemampuan Terbatas)
                             </h4>
                             <span className="rounded bg-amber-200 px-1.5 py-0.2 text-[9px] font-bold text-amber-900 dark:bg-amber-900 dark:text-amber-200">
-                              TRIAL DEMO
+                              DEMO TRIAL
                             </span>
                           </div>
-                          <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                            Fitur buat perkara baru dikunci (hanya eksplorasi berkas contoh &amp; graf)
+                          <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                            Hanya untuk evaluasi berkas contoh · 🔒 Fitur buat perkara baru dikunci
                           </p>
                         </div>
                       </div>
                       <ArrowRight className="h-4 w-4 text-amber-700 dark:text-amber-400 group-hover:translate-x-1 transition-transform" />
                     </button>
-
-                    {/* Advokat Pro */}
-                    <button
-                      type="button"
-                      disabled={isSubmitting}
-                      onClick={() => handleQuickLogin('CASEINTEL-PRO-2026', 'Advokat / Penasihat Hukum')}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-left hover:border-amber-500 hover:bg-amber-50/40 dark:border-slate-800 dark:bg-slate-800/50 dark:hover:border-amber-500/50 transition flex items-center justify-between group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-800 font-serif font-bold text-base dark:bg-amber-950 dark:text-amber-300">
-                          ⚖
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                              Advokat / Penasihat Hukum
-                            </h4>
-                            <span className="rounded bg-amber-100 px-1.5 py-0.2 text-[9px] font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                              PRO LENGKAP
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            Akses Penuh · Buat Analisis Perkara Baru &amp; Praperadilan
-                          </p>
-                        </div>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition" />
-                    </button>
-
-                    {/* Law Firm Enterprise */}
-                    <button
-                      type="button"
-                      disabled={isSubmitting}
-                      onClick={() => handleQuickLogin('CASEINTEL-FIRM-2026', 'Advokat / Penasihat Hukum')}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-left hover:border-purple-500 hover:bg-purple-50/40 dark:border-slate-800 dark:bg-slate-800/50 dark:hover:border-purple-500/50 transition flex items-center justify-between group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-800 font-serif font-bold text-base dark:bg-purple-950 dark:text-purple-300">
-                          🏢
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                              Law Firm Enterprise &amp; Institusi
-                            </h4>
-                            <span className="rounded bg-purple-100 px-1.5 py-0.2 text-[9px] font-bold text-purple-800 dark:bg-purple-950 dark:text-purple-300">
-                              ENTERPRISE
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            Akses Penuh Multi-Perangkat (10 Device) + Cloud Sync
-                          </p>
-                        </div>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-purple-700 dark:group-hover:text-purple-400 transition" />
-                    </button>
                   </div>
                 </div>
               )}
 
-              {/* 3. GENERATOR KUNCI LISENSI */}
-              {activeTab === 'generator' && (
-                <div className="space-y-4">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Gunakan generator ini untuk membuat kunci lisensi kustom dengan durasi masa aktif dan kuota perangkat tertentu:
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">
-                        Tipe Lisensi
-                      </label>
-                      <select
-                        value={genTier}
-                        onChange={(e) => setGenTier(e.target.value as LicenseTier)}
-                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                      >
-                        <option value="TRIAL">Uji Coba Demo (Buat Perkara Dikunci)</option>
-                        <option value="PRO">Pro Individu (3 Perangkat)</option>
-                        <option value="FIRM_ENTERPRISE">Law Firm Enterprise (10 Perangkat)</option>
-                        <option value="LIFETIME">Lifetime VIP (25 Perangkat)</option>
-                      </select>
+              {/* 3. PORTAL SUPER ADMIN */}
+              {activeTab === 'admin' && (
+                <form onSubmit={handleSuperAdminSubmit} className="space-y-4">
+                  <div className="rounded-2xl bg-rose-50 p-4 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900 space-y-1">
+                    <div className="flex items-center gap-2 text-rose-900 dark:text-rose-300 font-bold text-xs">
+                      <Shield className="h-4 w-4" />
+                      <span>Portal Khusus Super Admin / Pengelola</span>
                     </div>
+                    <p className="text-[11px] text-rose-800/90 dark:text-rose-300/90 leading-relaxed">
+                      Hanya Super Admin yang berwenang membuat, menerbitkan, dan mengelola kunci lisensi PRO, Law Firm, dan Uji Coba. Masukkan PIN Super Admin resmi.
+                    </p>
+                  </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">
-                        Durasi Masa Aktif
-                      </label>
-                      <select
-                        value={genDays}
-                        onChange={(e) => setGenDays(Number(e.target.value))}
-                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                      >
-                        <option value={30}>30 Hari (Trial)</option>
-                        <option value={180}>6 Bulan</option>
-                        <option value={365}>1 Tahun Penuh</option>
-                        <option value={730}>2 Tahun</option>
-                        <option value={36500}>Seumur Hidup (Lifetime)</option>
-                      </select>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                      PIN Rahasia / Kunci Master Super Admin <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                      <input
+                        type="password"
+                        required
+                        value={adminPin}
+                        onChange={(e) => setAdminPin(e.target.value)}
+                        placeholder="Masukkan PIN Super Admin (mis. admin2026)"
+                        className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-xs sm:text-sm font-mono font-bold text-slate-900 shadow-sm focus:border-rose-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">
+                      Nomor WhatsApp Admin (Opsional)
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        value={adminWa}
+                        onChange={(e) => setAdminWa(e.target.value)}
+                        placeholder="mis. 0800-SUPER-ADMIN"
+                        className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-8 pr-3 text-xs font-medium text-slate-900 shadow-sm focus:border-rose-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      />
                     </div>
                   </div>
 
                   <button
-                    type="button"
-                    onClick={handleGenerateKey}
-                    className="w-full rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 transition flex items-center justify-center gap-1.5"
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full rounded-2xl bg-rose-700 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-rose-800 dark:bg-rose-600 dark:hover:bg-rose-700 transition flex items-center justify-center gap-2 mt-4"
                   >
-                    <Zap className="h-3.5 w-3.5 text-amber-400" />
-                    <span>Generate Kunci Lisensi Baru</span>
+                    <span>{isSubmitting ? 'Memverifikasi...' : 'Masuk sebagai Super Admin'}</span>
+                    <ArrowRight className="h-4 w-4" />
                   </button>
-
-                  {generatedKey && (
-                    <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/40 space-y-3 animate-in fade-in">
-                      <span className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider block">
-                        Kunci Lisensi Berhasil Dibuat ({genTier === 'TRIAL' ? 'Mode Demo' : 'Akses Penuh'}):
-                      </span>
-                      <div className="flex items-center justify-between gap-2 rounded-xl bg-white dark:bg-slate-900 p-2.5 border border-amber-200 dark:border-amber-800">
-                        <code className="font-mono text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-300">
-                          {generatedKey}
-                        </code>
-                        <button
-                          type="button"
-                          onClick={handleCopyKey}
-                          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition"
-                          title="Salin Kunci"
-                        >
-                          {isCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                        </button>
-                      </div>
-
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={handleUseGeneratedKey}
-                          className="rounded-xl bg-amber-700 px-3.5 py-1.5 text-xs font-bold text-white shadow hover:bg-amber-800 transition"
-                        >
-                          Gunakan Kunci Ini untuk Masuk →
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                </form>
               )}
             </div>
 

@@ -89,7 +89,7 @@ export function CaseDashboard() {
 
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* Demo Mode Notice Banner if user is in trial/demo */}
+      {/* Demo Mode Restricted Notice Banner */}
       {isDemoMode && (
         <div className="rounded-3xl border border-amber-300 bg-gradient-to-r from-amber-50 via-amber-100/70 to-amber-50 p-5 shadow-sm dark:border-amber-900/60 dark:from-amber-950/40 dark:via-amber-900/20 dark:to-amber-950/40 text-amber-950 dark:text-amber-200 animate-in fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -99,13 +99,13 @@ export function CaseDashboard() {
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold font-serif">Mode Demo / Uji Coba Terbatas</h3>
+                  <h3 className="text-sm font-bold font-serif">Akun Demo (Kemampuan Terbatas)</h3>
                   <span className="rounded-full bg-amber-200 px-2 py-0.2 text-[10px] font-bold text-amber-900 dark:bg-amber-900 dark:text-amber-200 font-mono">
-                    TRIAL DEMO
+                    DEMO TRIAL
                   </span>
                 </div>
                 <p className="text-xs text-amber-900/90 dark:text-amber-200/90 max-w-2xl leading-relaxed">
-                  Fitur pembuatan analisa perkara baru <strong>dinonaktifkan (disabled)</strong> dalam mode demo. Anda dapat meninjau, mengedit, memutar simulasi graf relasi, dan mencetak laporan dari berkas perkara contoh. Untuk membuat analisa perkara baru tanpa batas, silakan aktifkan Lisensi PRO.
+                  Fitur pembuatan analisa perkara baru <strong>dinonaktifkan (terkunci)</strong> pada akun demo. Anda dapat mengeksplorasi, mengedit narasi &amp; barang bukti, serta menjalankan simulasi graf pada perkara contoh. Untuk membuat perkara baru, silakan gunakan Lisensi Pro.
                 </p>
               </div>
             </div>
@@ -139,13 +139,13 @@ export function CaseDashboard() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* New Case Button with Disabled state in Demo Mode */}
+          {/* New Case Button with Disabled State in Demo Mode */}
           {isDemoMode ? (
             <button
               type="button"
               onClick={() => setIsUpgradeModalOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-500 shadow-sm hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-400 dark:hover:bg-slate-800 transition cursor-pointer"
-              title="Pembuatan perkara baru dinonaktifkan pada Mode Demo. Klik untuk mengaktifkan Lisensi PRO."
+              title="Pembuatan perkara baru dinonaktifkan pada Akun Demo. Klik untuk mengaktifkan Lisensi PRO."
             >
               <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               <span>+ Buat Analisis Perkara Baru</span>
@@ -426,29 +426,29 @@ export function CaseDashboard() {
 
             <div className="space-y-2">
               <h3 className="font-serif text-lg font-bold text-slate-900 dark:text-white">
-                Pembuatan Perkara Baru Dinonaktifkan
+                Akun Demo: Buat Perkara Baru Terkunci
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Anda saat ini berada dalam <strong>Mode Demo / Uji Coba</strong>. Pembuatan berkas perkara baru terkunci untuk akun demo. Anda tetap dapat meninjau, mengedit narasi &amp; bukti, serta menjalankan simulasi graf pada perkara contoh.
+                Anda saat ini menggunakan <strong>Akun Demo Terbatas</strong>. Pembuatan berkas perkara baru dinonaktifkan untuk akun demo. Anda tetap dapat meninjau, mengedit narasi &amp; barang bukti, serta memutar simulasi graf relasi pada perkara contoh.
               </p>
             </div>
 
             <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-800 text-xs space-y-2">
               <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block text-[10px]">
-                Keunggulan Lisensi PRO / Enterprise:
+                Fitur Lengkap Lisensi Pro / Law Firm:
               </span>
               <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
-                  <span>Buat dan kelola analisis perkara baru tanpa batas</span>
+                  <span>Buat &amp; kelola analisis perkara baru tanpa batas</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
-                  <span>Sinkronisasi otomatis ke cloud database multi-device</span>
+                  <span>Sinkronisasi otomatis multi-perangkat via Supabase</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
-                  <span>Ekspor PDF Laporan Gelar Perkara &amp; Risalah Resmi</span>
+                  <span>Ekspor PDF Laporan Gelar Perkara Resmi</span>
                 </li>
               </ul>
             </div>
@@ -470,14 +470,14 @@ export function CaseDashboard() {
                 className="flex-1 rounded-xl bg-amber-700 py-2.5 text-xs font-bold text-white shadow hover:bg-amber-800 transition flex items-center justify-center gap-1.5"
               >
                 <Key className="h-3.5 w-3.5" />
-                <span>Masukkan Lisensi PRO</span>
+                <span>Masukkan Lisensi Pro</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Account Modal Triggered from Upgrade Dialog */}
+      {/* Account Modal */}
       <AccountModal
         isOpen={isAccountModalOpen}
         onClose={() => setIsAccountModalOpen(false)}

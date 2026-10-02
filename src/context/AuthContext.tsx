@@ -1,21 +1,34 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserDevice, UserRole, UserSession, LicenseTier } from '@/types/case';
+import { UserDevice, UserRole, UserSession, LicenseTier, LicenseInfo } from '@/types/case';
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase/client';
-import { validateLicenseKey, generateNewLicenseKey, PRESET_LICENSES } from '@/lib/license';
+import {
+  validateLicenseKey,
+  generateNewLicenseKey,
+  PRESET_LICENSES,
+  isSuperAdminUser,
+  SUPERADMIN_SECRET_PIN,
+  getIssuedLicensesList,
+} from '@/lib/license';
 
 interface AuthContextType {
   session: UserSession | null;
   isLoading: boolean;
   isCloudConnected: boolean;
+  isSuperAdmin: boolean;
   devices: UserDevice[];
+  issuedLicenses: LicenseInfo[];
   login: (
     waNumber: string,
     licenseKey: string,
     fullName?: string,
     role?: UserRole,
     organization?: string
+  ) => Promise<{ success: boolean; message: string }>;
+  loginAsSuperAdmin: (
+    pinOrKey: string,
+    waNumber?: string
   ) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   updateProfile: (
@@ -25,6 +38,11 @@ interface AuthContextType {
     waNumber?: string
   ) => void;
   updateLicense: (licenseKey: string) => { success: boolean; message: string };
+  generateLicenseAsAdmin: (
+    tier: LicenseTier,
+    durationDays: number,
+    issuedTo: string
+  ) => { success: boolean; license?: LicenseInfo; message: string };
   toggleCloudSync: (enable: boolean) => void;
   removeDevice: (deviceId: string) => Promise<void>;
   logoutOtherDevices: () => Promise<void>;
@@ -78,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [devices, setDevices] = useState<UserDevice[]>([]);
+  const [issuedLicenses, setIssuedLicenses] = useState<LicenseInfo[]>([]);
 
   // Initialize session on mount
   useEffect(() => {
@@ -88,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(parsed);
       }
       setIsCloudConnected(isSupabaseConfigured());
+      setIssuedLicenses(getIssuedLicensesList());
     } catch (e) {
       console.error('Failed to restore auth session:', e);
     } finally {
@@ -99,8 +119,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (session) {
       refreshDevices();
+      setIssuedLicenses(getIssuedLicensesList());
     }
   }, [session?.licenseKey, session?.whatsappNumber]);
+
+  const isSuperAdmin = isSuperAdminUser(session);
 
   const refreshDevices = async () => {
     if (!session) return;
@@ -110,7 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = getSupabaseClient();
     if (supabase && session.isCloudSyncActive) {
       try {
-        // Register or update current device timestamp in Supabase
         await supabase.from('user_devices').upsert(
           {
             license_key: session.licenseKey,
@@ -124,7 +146,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           { onConflict: 'license_key,device_id' }
         );
 
-        // Fetch all active devices associated with this license
         const { data, error } = await supabase
           .from('user_devices')
           .select('*')
@@ -189,11 +210,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const deviceId = getOrCreateDeviceId();
     const { deviceName } = detectClientEnvironment();
 
+    const isSuper = validation.isSuperAdmin || role === 'Super Admin / Pengelola Sistem';
+
     const newSession: UserSession = {
       whatsappNumber: cleanWA,
       licenseKey: lic.key,
-      fullName: fullName?.trim() || 'Advokat / Penyidik Terdaftar',
-      role: role || 'Advokat / Penasihat Hukum',
+      fullName: isSuper ? 'Super Administrator CaseIntel' : fullName?.trim() || 'Advokat / Penyidik Terdaftar',
+      role: isSuper ? 'Super Admin / Pengelola Sistem' : role || 'Advokat / Penasihat Hukum',
       organization: organization?.trim() || lic.issuedTo || 'Kantor Hukum & Penegak Hukum',
       licenseTier: lic.tier,
       licenseExpiry: lic.expiresAt,
@@ -201,10 +224,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       deviceId,
       deviceName,
       isCloudSyncActive: true,
+      isSuperAdmin: isSuper,
       loginAt: new Date().toISOString(),
     };
 
-    // Sync to Supabase user_profiles table if connected
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
@@ -230,18 +253,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: true, message: `Berhasil masuk dengan ${lic.label}!` };
   };
 
+  const loginAsSuperAdmin = async (
+    pinOrKey: string,
+    waNumber: string = '0800-SUPER-ADMIN'
+  ): Promise<{ success: boolean; message: string }> => {
+    const cleanInput = (pinOrKey || '').trim();
+    if (cleanInput === SUPERADMIN_SECRET_PIN || cleanInput.toUpperCase() === 'CASEINTEL-SUPERADMIN-ROOT') {
+      return await login(
+        waNumber,
+        'CASEINTEL-SUPERADMIN-ROOT',
+        'Super Administrator Sistem',
+        'Super Admin / Pengelola Sistem',
+        'Pusat Kontrol Lisensi CaseIntel'
+      );
+    }
+    return { success: false, message: 'PIN / Kunci Super Admin tidak valid.' };
+  };
+
+  const generateLicenseAsAdmin = (
+    tier: LicenseTier,
+    durationDays: number,
+    issuedTo: string
+  ): { success: boolean; license?: LicenseInfo; message: string } => {
+    if (!isSuperAdmin) {
+      return {
+        success: false,
+        message: 'Akses Ditolak: Hanya Super Admin yang memiliki wewenang membuat kunci lisensi dan uji coba.',
+      };
+    }
+
+    const newLic = generateNewLicenseKey(tier, durationDays, issuedTo);
+    setIssuedLicenses(getIssuedLicensesList());
+    return {
+      success: true,
+      license: newLic,
+      message: `Kunci lisensi ${newLic.label} berhasil dibuat oleh Super Admin!`,
+    };
+  };
+
   const quickLoginAs = async (presetKey: string, role: UserRole = 'Advokat / Penasihat Hukum') => {
     const lic = PRESET_LICENSES[presetKey] || PRESET_LICENSES['CASEINTEL-PRO-2026'];
-    const wa = presetKey.includes('FIRM') ? '0812-9988-7766' : '0812-3456-7890';
+    const wa = presetKey.includes('FIRM')
+      ? '0812-9988-7766'
+      : presetKey.includes('TRIAL')
+      ? '0812-1111-2222'
+      : '0812-3456-7890';
+
     const name =
-      role === 'Penyidik Kepolisian'
+      presetKey.includes('TRIAL')
+        ? 'Pengguna Uji Coba (Demo)'
+        : role === 'Penyidik Kepolisian'
         ? 'AKP Ridwan Hakim, S.H., M.H.'
         : role === 'Jaksa Penuntut Umum'
         ? 'Jaksa Pratama Maria Fernandez, S.H.'
         : 'Advokat Rizki M. Ramdani, S.H., M.H.';
 
     const org =
-      role === 'Penyidik Kepolisian'
+      presetKey.includes('TRIAL')
+        ? 'Kantor Uji Coba Demo'
+        : role === 'Penyidik Kepolisian'
         ? 'Satreskrim Kepolisian'
         : role === 'Jaksa Penuntut Umum'
         ? 'Kejaksaan Negeri'
@@ -293,12 +363,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const lic = validation.license;
+    const isSuper = validation.isSuperAdmin || lic.tier === 'SUPERADMIN';
+
     const updated: UserSession = {
       ...session,
       licenseKey: lic.key,
       licenseTier: lic.tier,
       licenseExpiry: lic.expiresAt,
       maxDevices: lic.maxDevices,
+      isSuperAdmin: isSuper || session.isSuperAdmin,
     };
 
     setSession(updated);
@@ -357,11 +430,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session,
         isLoading,
         isCloudConnected,
+        isSuperAdmin,
         devices,
+        issuedLicenses,
         login,
+        loginAsSuperAdmin,
         logout,
         updateProfile,
         updateLicense,
+        generateLicenseAsAdmin,
         toggleCloudSync,
         removeDevice,
         logoutOtherDevices,

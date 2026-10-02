@@ -52,7 +52,7 @@ const CURRENT_CASE_ID_KEY = 'caseintel_current_case_id';
 
 const createEmptyCase = (licenseKey?: string): CaseData => ({
   id: 'case_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
-  licenseKey: licenseKey || 'DEMO-CASEINTEL',
+  licenseKey: licenseKey || 'CASEINTEL-PRO-2026',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 
@@ -260,18 +260,18 @@ export function CaseProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Block creating new cases in Demo Mode
+  // Create new case (restricted in Demo mode)
   const newCase = (): { success: boolean; message?: string } => {
     if (isDemoMode) {
       setIsUpgradeModalOpen(true);
       return {
         success: false,
         message:
-          'Fitur pembuatan analisis perkara baru dikunci pada Mode Demo / Uji Coba. Silakan perbarui ke Lisensi PRO atau Law Firm untuk membuat berkas perkara baru tanpa batas.',
+          'Fitur pembuatan analisa perkara baru dinonaktifkan pada Akun Demo Terbatas. Silakan aktifkan Lisensi Pro untuk membuat perkara baru tanpa batas.',
       };
     }
 
-    const fresh = createEmptyCase(session?.licenseKey);
+    const fresh = createEmptyCase(session?.licenseKey || 'CASEINTEL-PRO-2026');
     setCurrentCase(fresh);
     setCurrentStep(0);
     setViewMode('wizard');
