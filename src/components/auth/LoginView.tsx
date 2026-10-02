@@ -209,7 +209,7 @@ export function LoginView() {
                           type="text"
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
-                          placeholder="mis. Rizki M. Ramdani, S.H."
+                          placeholder="mis. Ilvana Oktaviani S.H."
                           className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-8 pr-3 text-xs font-medium text-slate-900 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                         />
                       </div>
@@ -243,7 +243,7 @@ export function LoginView() {
                         type="text"
                         value={organization}
                         onChange={(e) => setOrganization(e.target.value)}
-                        placeholder="mis. Kantor Hukum Rizki M. Ramdani & Partners"
+                        placeholder="mis. Kantor Hukum Ilvana Oktaviani, S.H & Partners"
                         className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-8 pr-3 text-xs font-medium text-slate-900 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                       />
                     </div>
