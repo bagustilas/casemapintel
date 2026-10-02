@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useCase } from '@/context/CaseContext';
+import { useAuth } from '@/context/AuthContext';
 import {
   FolderPlus,
   FileJson,
@@ -16,8 +17,14 @@ import {
   ShieldCheck,
   CheckCircle2,
   Sparkles,
+  Lock,
+  Key,
+  ShieldAlert,
+  ArrowRight,
+  X,
+  Zap,
 } from 'lucide-react';
-import { formatRupiah } from '@/lib/scoring';
+import { AccountModal } from '../account/AccountModal';
 
 export function CaseDashboard() {
   const {
@@ -29,11 +36,17 @@ export function CaseDashboard() {
     loadSampleCase,
     exportAllCasesJson,
     importCasesJson,
+    isDemoMode,
+    isUpgradeModalOpen,
+    setIsUpgradeModalOpen,
   } = useCase();
+
+  const { session } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStage, setFilterStage] = useState('ALL');
   const [importStatus, setImportStatus] = useState<{ success: boolean; msg: string } | null>(null);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredCases = caseList.filter((c) => {
@@ -66,8 +79,48 @@ export function CaseDashboard() {
     e.target.value = '';
   };
 
+  const handleNewCaseClick = () => {
+    const res = newCase();
+    if (!res.success) {
+      setIsUpgradeModalOpen(true);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Demo Mode Notice Banner if user is in trial/demo */}
+      {isDemoMode && (
+        <div className="rounded-3xl border border-amber-300 bg-gradient-to-r from-amber-50 via-amber-100/60 to-amber-50 p-5 shadow-sm dark:border-amber-900/60 dark:from-amber-950/40 dark:via-amber-900/20 dark:to-amber-950/40 text-amber-950 dark:text-amber-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-200/80 text-amber-900 dark:bg-amber-900 dark:text-amber-200 flex-shrink-0 mt-0.5">
+                <Lock className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold font-serif">Mode Demo / Uji Coba Terbatas</h3>
+                  <span className="rounded-full bg-amber-200 px-2 py-0.2 text-[10px] font-bold text-amber-900 dark:bg-amber-900 dark:text-amber-200 font-mono">
+                    TRIAL
+                  </span>
+                </div>
+                <p className="text-xs text-amber-900/80 dark:text-amber-200/80 max-w-2xl leading-relaxed">
+                  Pembuatan analisis perkara baru <strong>dikunci</strong> dalam mode demo. Anda dapat meninjau, mengedit simulasi graf, dan mengevaluasi perkara contoh. Masukkan Kunci Lisensi PRO atau Law Firm untuk membuat perkara baru tanpa batas.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsAccountModalOpen(true)}
+              className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl bg-amber-800 px-4 py-2 text-xs font-bold text-white shadow hover:bg-amber-900 dark:bg-amber-600 dark:hover:bg-amber-700 transition flex-shrink-0"
+            >
+              <Key className="h-3.5 w-3.5" />
+              <span>Aktifkan Lisensi Pro</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner / Actions */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-6 dark:border-slate-800">
         <div>
@@ -85,12 +138,27 @@ export function CaseDashboard() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* New Case Button with Demo Mode Badge */}
           <button
-            onClick={newCase}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-700 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700 transition"
+            onClick={handleNewCaseClick}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold shadow-md transition ${
+              isDemoMode
+                ? 'bg-slate-800 text-slate-200 hover:bg-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700'
+                : 'bg-amber-700 text-white hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700'
+            }`}
+            title={
+              isDemoMode
+                ? 'Pembuatan perkara baru dikunci pada Mode Demo. Klik untuk memasukkan Kunci Lisensi PRO.'
+                : 'Buat analisis perkara baru'
+            }
           >
-            <FolderPlus className="h-4 w-4" />
+            {isDemoMode ? <Lock className="h-4 w-4 text-amber-400" /> : <FolderPlus className="h-4 w-4" />}
             <span>+ Buat Analisis Perkara Baru</span>
+            {isDemoMode && (
+              <span className="rounded bg-amber-400/20 px-1.5 py-0.2 text-[9px] font-bold text-amber-300 font-mono">
+                PRO
+              </span>
+            )}
           </button>
 
           <button
@@ -189,7 +257,7 @@ export function CaseDashboard() {
           </p>
           <div className="flex gap-2 mt-4">
             <button
-              onClick={newCase}
+              onClick={handleNewCaseClick}
               className="rounded-xl bg-amber-700 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-800 transition"
             >
               + Perkara Baru
@@ -326,6 +394,82 @@ export function CaseDashboard() {
           })}
         </div>
       )}
+
+      {/* Upgrade / Demo Restriction Modal */}
+      {isUpgradeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-5 animate-in zoom-in-95">
+            <div className="flex justify-between items-start">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold">
+                <Lock className="h-6 w-6" />
+              </div>
+              <button
+                onClick={() => setIsUpgradeModalOpen(false)}
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-serif text-lg font-bold text-slate-900 dark:text-white">
+                Fitur Terbatas pada Mode Demo
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Pembuatan berkas perkara baru tidak tersedia pada <strong>Mode Demo / Uji Coba</strong>. Anda tetap dapat meninjau, mengedit, dan mengekspor berkas contoh yang telah disediakan.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-800 text-xs space-y-2">
+              <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block text-[10px]">
+                Keunggulan Lisensi PRO / Enterprise:
+              </span>
+              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
+                  <span>Buat dan simpan analisis perkara baru tanpa batas</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
+                  <span>Sinkronisasi otomatis ke cloud database multi-device</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
+                  <span>Ekspor PDF Laporan Gelar Perkara &amp; Risalah Resmi</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsUpgradeModalOpen(false)}
+                className="flex-1 rounded-xl border border-slate-300 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition"
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsUpgradeModalOpen(false);
+                  setIsAccountModalOpen(true);
+                }}
+                className="flex-1 rounded-xl bg-amber-700 py-2.5 text-xs font-bold text-white shadow hover:bg-amber-800 transition flex items-center justify-center gap-1.5"
+              >
+                <Key className="h-3.5 w-3.5" />
+                <span>Masukkan Lisensi PRO</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account Modal Triggered from Upgrade Dialog */}
+      <AccountModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+        defaultTab="license"
+      />
     </div>
   );
 }

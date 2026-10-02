@@ -2,6 +2,9 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useCase } from '@/context/CaseContext';
+import { UserRole, LicenseTier } from '@/types/case';
+import { formatDaysRemaining, generateNewLicenseKey } from '@/lib/license';
 import {
   X,
   User,
@@ -14,277 +17,562 @@ import {
   CheckCircle2,
   Shield,
   Building,
+  LogOut,
+  RefreshCw,
+  Zap,
+  Copy,
+  Check,
+  ShieldAlert,
+  Calendar,
+  Layers,
+  Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 
 interface AccountModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultTab?: 'profile' | 'license' | 'devices' | 'sync';
 }
 
-export function AccountModal({ isOpen, onClose }: AccountModalProps) {
+const USER_ROLES: UserRole[] = [
+  'Advokat / Penasihat Hukum',
+  'Penyidik Kepolisian',
+  'Jaksa Penuntut Umum',
+  'Konsultan Hukum / Paralegal',
+  'Hakim / Panitera',
+  'Pengguna Umum / Peneliti',
+];
+
+export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: AccountModalProps) {
   const {
     session,
     devices,
-    login,
     logout,
     updateProfile,
+    updateLicense,
     toggleCloudSync,
     removeDevice,
+    logoutOtherDevices,
+    refreshDevices,
     isCloudConnected,
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'devices' | 'login'>('profile');
-  const [waInput, setWaInput] = useState(session?.whatsappNumber || '');
-  const [licenseInput, setLicenseInput] = useState(session?.licenseKey || '');
-  const [nameInput, setNameInput] = useState(session?.fullName || '');
-  const [orgInput, setOrgInput] = useState(session?.organization || '');
-  const [savedMessage, setSavedMessage] = useState('');
+  const { isCloudSyncing, caseList, saveCurrentCase } = useCase();
+
+  const [activeTab, setActiveTab] = useState<'profile' | 'license' | 'devices' | 'sync'>(defaultTab);
+
+  // Profile Form
+  const [fullName, setFullName] = useState(session?.fullName || '');
+  const [role, setRole] = useState<UserRole>(session?.role || 'Advokat / Penasihat Hukum');
+  const [organization, setOrganization] = useState(session?.organization || '');
+  const [waNumber, setWaNumber] = useState(session?.whatsappNumber || '');
+
+  // License Form
+  const [newLicenseKey, setNewLicenseKey] = useState('');
+  const [genTier, setGenTier] = useState<LicenseTier>('PRO');
+  const [genDays, setGenDays] = useState(365);
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
+
+  // Feedback Toast
+  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   if (!isOpen) return null;
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!waInput || !licenseInput) return;
-    await login(waInput, licenseInput, nameInput);
-    setActiveTab('profile');
-    setSavedMessage('Berhasil masuk dengan lisensi akun!');
-    setTimeout(() => setSavedMessage(''), 3000);
+  const showToast = (type: 'success' | 'error', text: string) => {
+    setToastMsg({ type, text });
+    setTimeout(() => setToastMsg(null), 3500);
   };
 
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfile(nameInput, orgInput);
-    setSavedMessage('Profil berhasil diperbarui.');
-    setTimeout(() => setSavedMessage(''), 3000);
+    updateProfile(fullName, role, organization, waNumber);
+    showToast('success', 'Profil dan data kantor berhasil diperbarui.');
   };
+
+  const handleApplyLicense = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLicenseKey.trim()) return;
+    const res = updateLicense(newLicenseKey);
+    if (res.success) {
+      showToast('success', res.message);
+      setNewLicenseKey('');
+    } else {
+      showToast('error', res.message);
+    }
+  };
+
+  const handleGenerateKey = () => {
+    const lic = generateNewLicenseKey(genTier, genDays);
+    setGeneratedKey(lic.key);
+    setIsCopied(false);
+  };
+
+  const handleCopyKey = () => {
+    if (!generatedKey) return;
+    navigator.clipboard.writeText(generatedKey);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2500);
+  };
+
+  const handleApplyGenerated = () => {
+    if (!generatedKey) return;
+    const res = updateLicense(generatedKey);
+    if (res.success) {
+      showToast('success', res.message);
+      setGeneratedKey(null);
+    } else {
+      showToast('error', res.message);
+    }
+  };
+
+  const handleLogout = () => {
+    if (confirm('Apakah Anda yakin ingin keluar dari akun ini?')) {
+      logout();
+      onClose();
+    }
+  };
+
+  const daysRemaining = formatDaysRemaining(session?.licenseExpiry || new Date().toISOString());
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold">
               <Shield className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900 dark:text-white">Pengaturan Akun & Lisensi</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Sinkronisasi cloud & multi-perangkat</p>
+              <h3 className="font-bold text-slate-900 dark:text-white font-serif text-base">
+                Pusat Pengaturan Akun &amp; Lisensi
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Kelola identitas, lisensi aktif, sesi perangkat, dan sinkronisasi cloud
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition"
+            className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Tab Buttons */}
-        <div className="flex border-b border-slate-200 bg-slate-50/50 px-6 dark:border-slate-800 dark:bg-slate-900/50">
+        {/* Tab Navigation */}
+        <div className="flex border-b border-slate-200 bg-slate-50/70 px-6 dark:border-slate-800 dark:bg-slate-900/50 overflow-x-auto flex-shrink-0 scrollbar-none">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`border-b-2 py-3 px-4 text-xs font-semibold transition ${
+            className={`border-b-2 py-3 px-3 text-xs font-bold transition whitespace-nowrap ${
               activeTab === 'profile'
-                ? 'border-amber-700 text-amber-700 dark:border-amber-400 dark:text-amber-400'
+                ? 'border-amber-700 text-amber-800 dark:border-amber-400 dark:text-amber-400'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400'
             }`}
           >
-            Akun Saya
+            Akun &amp; Profil
           </button>
+
+          <button
+            onClick={() => setActiveTab('license')}
+            className={`border-b-2 py-3 px-3 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'license'
+                ? 'border-amber-700 text-amber-800 dark:border-amber-400 dark:text-amber-400'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400'
+            }`}
+          >
+            <span>Lisensi Saya</span>
+            <span className="rounded-full bg-amber-100 px-1.5 py-0.2 text-[9px] font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+              {session?.licenseTier || 'PRO'}
+            </span>
+          </button>
+
           <button
             onClick={() => setActiveTab('devices')}
-            className={`border-b-2 py-3 px-4 text-xs font-semibold transition flex items-center gap-1.5 ${
+            className={`border-b-2 py-3 px-3 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
               activeTab === 'devices'
-                ? 'border-amber-700 text-amber-700 dark:border-amber-400 dark:text-amber-400'
+                ? 'border-amber-700 text-amber-800 dark:border-amber-400 dark:text-amber-400'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400'
             }`}
           >
             <span>Perangkat Saya</span>
-            <span className="rounded-full bg-slate-200 px-1.5 py-0.2 text-[10px] text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+            <span className="rounded-full bg-slate-200 px-1.5 py-0.2 text-[9px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
               {devices.length}
             </span>
           </button>
+
           <button
-            onClick={() => setActiveTab('login')}
-            className={`border-b-2 py-3 px-4 text-xs font-semibold transition ${
-              activeTab === 'login'
-                ? 'border-amber-700 text-amber-700 dark:border-amber-400 dark:text-amber-400'
+            onClick={() => setActiveTab('sync')}
+            className={`border-b-2 py-3 px-3 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'sync'
+                ? 'border-amber-700 text-amber-800 dark:border-amber-400 dark:text-amber-400'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400'
             }`}
           >
-            Ganti / Hubungkan Lisensi
+            <Cloud className="h-3 w-3" />
+            <span>Cloud &amp; Database</span>
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6">
-          {savedMessage && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-xs font-medium text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-              <CheckCircle2 className="h-4 w-4" />
-              <span>{savedMessage}</span>
+        {/* Modal Content Area */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-5">
+          {/* Alert Toast */}
+          {toastMsg && (
+            <div
+              className={`rounded-2xl p-3.5 text-xs font-semibold flex items-center gap-2 border animate-in fade-in ${
+                toastMsg.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                  : 'bg-rose-50 text-rose-900 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+              }`}
+            >
+              {toastMsg.type === 'success' ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+              ) : (
+                <ShieldAlert className="h-4 w-4 text-rose-600 flex-shrink-0" />
+              )}
+              <span>{toastMsg.text}</span>
             </div>
           )}
 
-          {/* TAB 1: Profile */}
+          {/* TAB 1: PROFIL SAYA */}
           {activeTab === 'profile' && (
             <form onSubmit={handleProfileSave} className="space-y-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    Status Lisensi
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Aktif
-                  </span>
+              <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4 border border-slate-200 dark:bg-slate-800/40 dark:border-slate-800">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-700 text-white font-serif text-xl font-bold shadow-md">
+                  {(fullName || session?.fullName || 'AD')
+                    .split(/\s+/)
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase()}
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400">Kunci Lisensi:</span>
-                    <p className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                      {session?.licenseKey || 'DEMO-PRO-2026'}
-                    </p>
+                <div>
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white font-serif">
+                    {session?.fullName || 'Advokat / Penyidik'}
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{session?.role}</p>
+                  <p className="text-[11px] font-mono text-amber-700 dark:text-amber-400 mt-0.5">
+                    WA: {session?.whatsappNumber}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                    Nama Lengkap &amp; Gelar
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="mis. Rizki M. Ramdani, S.H., M.H."
+                      className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-semibold text-slate-900 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
                   </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400">Nomor WhatsApp:</span>
-                    <p className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                      {session?.whatsappNumber || '0812-xxxx-xxxx'}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400">Masa Berlaku:</span>
-                    <p className="font-medium text-slate-800 dark:text-slate-200">
-                      {session?.licenseExpiry
-                        ? new Date(session.licenseExpiry).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          })
-                        : '31 Desember 2026'}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400">Backend Supabase:</span>
-                    <p className="font-medium text-slate-800 dark:text-slate-200">
-                      {isCloudConnected ? '🟢 Terhubung' : '🟡 Standalone / Lokal'}
-                    </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                    Nomor WhatsApp
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      required
+                      value={waNumber}
+                      onChange={(e) => setWaNumber(e.target.value)}
+                      placeholder="mis. 0812-3456-7890"
+                      className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-semibold text-slate-900 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
                   </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Nama Lengkap / Tampilan
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-800 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                    placeholder="mis. Advokat Rizki M. Ramdani, S.H."
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                    Profesi / Jabatan Hukum
+                  </label>
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as UserRole)}
+                    className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-semibold text-slate-900 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  >
+                    {USER_ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Kantor Hukum / Instansi
-                </label>
-                <div className="relative">
-                  <Building className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={orgInput}
-                    onChange={(e) => setOrgInput(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-800 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                    placeholder="mis. Kantor Hukum Rizki M. Ramdani & Partners"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Cloud className="h-4 w-4 text-amber-700 dark:text-amber-400" />
-                  <div>
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      Cloud Sync Otomatis
-                    </span>
-                    <p className="text-[11px] text-slate-500">Sinkronisasi berkas otomatis antar-perangkat</p>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                    Kantor Hukum / Instansi
+                  </label>
+                  <div className="relative">
+                    <Building className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={organization}
+                      onChange={(e) => setOrganization(e.target.value)}
+                      placeholder="mis. Kantor Hukum Rizki M. Ramdani & Partners"
+                      className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-900 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
                   </div>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={session?.isCloudSyncActive ?? true}
-                  onChange={(e) => toggleCloudSync(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-amber-700 focus:ring-amber-500 cursor-pointer"
-                />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-between items-center pt-2">
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition"
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/60 dark:text-rose-300 transition"
                 >
-                  Tutup
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Keluar dari Akun</span>
                 </button>
+
                 <button
                   type="submit"
-                  className="rounded-xl bg-amber-700 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-amber-800 transition"
+                  className="rounded-xl bg-amber-700 px-5 py-2 text-xs font-bold text-white shadow hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700 transition"
                 >
-                  Simpan Perubahan
+                  Simpan Perubahan Profil
                 </button>
               </div>
             </form>
           )}
 
-          {/* TAB 2: Devices */}
-          {activeTab === 'devices' && (
-            <div className="space-y-3">
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Daftar perangkat yang terhubung dengan kunci lisensi ini. Anda dapat memutuskan akses sesi perangkat lain.
-              </p>
+          {/* TAB 2: LISENSI SAYA */}
+          {activeTab === 'license' && (
+            <div className="space-y-5">
+              {/* Digital License Hologram Card */}
+              <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white p-5 sm:p-6 shadow-xl border border-slate-800 relative overflow-hidden">
+                <div className="relative z-10 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-amber-400 block">
+                        KARTU LISENSI DIGITAL RESMI
+                      </span>
+                      <h4 className="text-lg font-bold font-serif text-white mt-0.5">
+                        {session?.organization || 'Kantor Hukum Terdaftar'}
+                      </h4>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-0.5 text-xs font-bold border ${daysRemaining.colorClass}`}
+                    >
+                      {daysRemaining.label}
+                    </span>
+                  </div>
 
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  <div className="rounded-2xl bg-white/5 border border-white/10 p-3.5 font-mono">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-0.5">
+                      Kunci Lisensi Terdaftar:
+                    </span>
+                    <span className="text-sm sm:text-base font-bold text-amber-300 tracking-wider">
+                      {session?.licenseKey}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-xs pt-1">
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase block">Paket</span>
+                      <span className="font-bold text-slate-200">{session?.licenseTier}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase block">Batas Device</span>
+                      <span className="font-bold text-slate-200">
+                        {devices.length} / {session?.maxDevices || 3} Perangkat
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase block">Kedaluwarsa</span>
+                      <span className="font-bold text-slate-200">
+                        {session?.licenseExpiry
+                          ? new Date(session.licenseExpiry).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })
+                          : 'Seumur Hidup'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Input Kunci Baru / Perpanjangan */}
+              <form onSubmit={handleApplyLicense} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800 space-y-3">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider block">
+                  Perpanjang Lisensi / Masukkan Kunci Baru
+                </span>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newLicenseKey}
+                    onChange={(e) => setNewLicenseKey(e.target.value.toUpperCase())}
+                    placeholder="mis. CASEINTEL-PRO-2026-XXXX"
+                    className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 shadow-sm uppercase focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-amber-700 px-4 py-2 text-xs font-bold text-white shadow hover:bg-amber-800 transition"
+                  >
+                    Terapkan
+                  </button>
+                </div>
+              </form>
+
+              {/* Generator Lisensi Demo */}
+              <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200 dark:bg-slate-800/40 dark:border-slate-800 space-y-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  <Zap className="h-3.5 w-3.5 text-amber-600" />
+                  <span>Generator Lisensi Demo (Admin / Testing)</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <select
+                    value={genTier}
+                    onChange={(e) => setGenTier(e.target.value as LicenseTier)}
+                    className="rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-800"
+                  >
+                    <option value="PRO">Pro (3 Devices)</option>
+                    <option value="FIRM_ENTERPRISE">Law Firm Enterprise (10 Devices)</option>
+                    <option value="TRIAL">Trial 30 Hari (2 Devices)</option>
+                    <option value="LIFETIME">Lifetime VIP (25 Devices)</option>
+                  </select>
+
+                  <select
+                    value={genDays}
+                    onChange={(e) => setGenDays(Number(e.target.value))}
+                    className="rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-800"
+                  >
+                    <option value={30}>30 Hari</option>
+                    <option value={365}>1 Tahun</option>
+                    <option value={36500}>Lifetime</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGenerateKey}
+                  className="w-full rounded-xl border border-slate-300 bg-white py-2 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 transition"
+                >
+                  Generate Kunci Uji Coba Baru
+                </button>
+
+                {generatedKey && (
+                  <div className="rounded-xl bg-amber-100/70 p-3 border border-amber-300 dark:bg-amber-950/60 dark:border-amber-900 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <code className="font-mono text-xs font-bold text-amber-950 dark:text-amber-200">
+                        {generatedKey}
+                      </code>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={handleCopyKey}
+                          className="rounded-lg p-1 text-slate-700 hover:bg-amber-200 dark:text-slate-300 dark:hover:bg-amber-900 transition"
+                          title="Salin"
+                        >
+                          {isCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleApplyGenerated}
+                          className="rounded-lg bg-amber-700 px-2.5 py-1 text-[11px] font-bold text-white shadow hover:bg-amber-800 transition"
+                        >
+                          Pakai Sekarang
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: PERANGKAT SAYA */}
+          {activeTab === 'devices' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3 dark:border-slate-800">
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    Sesi Perangkat Aktif ({devices.length} / {session?.maxDevices || 3})
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Sesi aktif yang saat ini terhubung dan menyinkronkan berkas perkara dengan lisensi ini.
+                  </p>
+                </div>
+
+                {devices.filter((d) => !d.isCurrent).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={logoutOtherDevices}
+                    className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:border-rose-900 dark:text-rose-300 transition self-start sm:self-auto"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Putus Sesi Semua Device Lain</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-2.5">
                 {devices.map((dev) => (
                   <div
                     key={dev.deviceId}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-800/60 shadow-sm"
+                    className={`flex items-center justify-between rounded-2xl border p-3.5 transition ${
+                      dev.isCurrent
+                        ? 'border-amber-400 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30'
+                        : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-800/50'
+                    }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                      <div
+                        className={`flex h-10 w-10 items-center justify-center rounded-xl font-bold ${
+                          dev.isCurrent
+                            ? 'bg-amber-700 text-white dark:bg-amber-600'
+                            : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                        }`}
+                      >
                         {dev.deviceType === 'mobile' ? (
-                          <Smartphone className="h-4 w-4" />
+                          <Smartphone className="h-5 w-5" />
                         ) : (
-                          <Laptop className="h-4 w-4" />
+                          <Laptop className="h-5 w-5" />
                         )}
                       </div>
+
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">
                             {dev.deviceName}
                           </span>
                           {dev.isCurrent && (
-                            <span className="rounded bg-amber-100 px-1.5 py-0.2 text-[10px] font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                               Perangkat Ini
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+
+                        <p className="text-[11px] text-slate-500 font-mono">
                           ID: {dev.deviceId.substring(0, 14)}... · Aktif:{' '}
                           {new Date(dev.lastActive).toLocaleTimeString('id-ID')}
-                        </span>
+                        </p>
                       </div>
                     </div>
 
                     {!dev.isCurrent && (
                       <button
+                        type="button"
                         onClick={() => removeDevice(dev.deviceId)}
-                        className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
-                        title="Putus Sesi Perangkat"
+                        className="rounded-xl border border-slate-200 p-2 text-slate-400 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:hover:bg-rose-950/40 transition"
+                        title="Putus Sesi / Force Logout"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -295,79 +583,90 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
             </div>
           )}
 
-          {/* TAB 3: Login / Connect License */}
-          {activeTab === 'login' && (
-            <form onSubmit={handleLoginSubmit} className="space-y-4">
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Masukkan nomor WhatsApp dan Kunci Lisensi resmi Anda untuk menghubungkan data perkara antar-perangkat.
-              </p>
+          {/* TAB 4: CLOUD & DATABASE */}
+          {activeTab === 'sync' && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Cloud className="h-4 w-4 text-amber-700 dark:text-amber-400" />
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      Status Koneksi Supabase Database
+                    </span>
+                  </div>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                      isCloudConnected
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                    }`}
+                  >
+                    {isCloudConnected ? '🟢 Terhubung Online' : '🟡 Standalone / Cache Lokal'}
+                  </span>
+                </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Nomor WhatsApp Terdaftar
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <div className="flex items-center justify-between rounded-xl bg-white p-3 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 text-xs">
+                  <div>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                      Sinkronisasi Cloud Otomatis
+                    </span>
+                    <p className="text-[11px] text-slate-500">
+                      Otomatis simpan dan ambil berkas perkara antar-perangkat terhubung
+                    </p>
+                  </div>
                   <input
-                    type="text"
-                    required
-                    value={waInput}
-                    onChange={(e) => setWaInput(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-800 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                    placeholder="mis. 081234567890"
+                    type="checkbox"
+                    checked={session?.isCloudSyncActive ?? true}
+                    onChange={(e) => toggleCloudSync(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-amber-700 focus:ring-amber-500 cursor-pointer"
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-3 rounded-xl bg-white border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+                    <span className="text-[10px] text-slate-400 uppercase block">Total Perkara Lokal</span>
+                    <span className="font-bold text-sm text-slate-900 dark:text-white">
+                      {caseList.length} Perkara
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+                    <span className="text-[10px] text-slate-400 uppercase block">Status Sinkronisasi</span>
+                    <span className="font-bold text-sm text-slate-900 dark:text-white">
+                      {isCloudSyncing ? 'Sedang Sinkron...' : 'Up-to-date'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    disabled={isCloudSyncing}
+                    onClick={async () => {
+                      await saveCurrentCase(true);
+                      await refreshDevices();
+                      showToast('success', 'Sinkronisasi berhasil diselesaikan.');
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-amber-700 px-4 py-2 text-xs font-bold text-white shadow hover:bg-amber-800 transition"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+                    <span>Sinkronkan Sekarang</span>
+                  </button>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Kunci Lisensi CASEINTEL
-                </label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    required
-                    value={licenseInput}
-                    onChange={(e) => setLicenseInput(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-mono font-bold text-slate-800 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 uppercase"
-                    placeholder="mis. CI-2026-XXXX-XXXX"
-                  />
+              {!isCloudConnected && (
+                <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 dark:bg-amber-950/40 dark:border-amber-900 dark:text-amber-200 space-y-1.5">
+                  <h5 className="font-bold">Tips Integrasi Supabase:</h5>
+                  <p className="text-[11px] leading-relaxed">
+                    Untuk mengaktifkan cloud database multi-device antar advokat/penyidik, buat project gratis di{' '}
+                    <a href="https://supabase.com" target="_blank" rel="noreferrer" className="underline font-bold">
+                      supabase.com
+                    </a>{' '}
+                    dan jalankan skrip SQL di <code>src/lib/supabase/schema.sql</code>, lalu isi file <code>.env.local</code>.
+                  </p>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Nama Pengguna (Opsional)
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-800 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                    placeholder="mis. Advokat / Penyidik"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-amber-700 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-amber-800 transition"
-                >
-                  Hubungkan Akun
-                </button>
-              </div>
-            </form>
+              )}
+            </div>
           )}
         </div>
       </div>

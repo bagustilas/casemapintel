@@ -174,23 +174,55 @@ export interface ScoreBreakdown {
   zoneDescription: string;
 }
 
+// -------------------------------------------------------------
+// AUTH & LICENSE TYPES
+// -------------------------------------------------------------
+
+export type UserRole =
+  | 'Advokat / Penasihat Hukum'
+  | 'Penyidik Kepolisian'
+  | 'Jaksa Penuntut Umum'
+  | 'Hakim / Panitera'
+  | 'Konsultan Hukum / Paralegal'
+  | 'Pengguna Umum / Peneliti';
+
+export type LicenseTier = 'TRIAL' | 'PRO' | 'FIRM_ENTERPRISE' | 'LIFETIME';
+
+export interface LicenseInfo {
+  key: string;
+  tier: LicenseTier;
+  label: string;
+  maxDevices: number;
+  issuedTo: string;
+  issuedAt: string;
+  expiresAt: string;
+  status: 'active' | 'expired' | 'suspended';
+  features: string[];
+}
+
 export interface UserSession {
   whatsappNumber: string;
   licenseKey: string;
   fullName: string;
+  role: UserRole;
   organization?: string;
+  licenseTier: LicenseTier;
   licenseExpiry: string;
+  maxDevices: number;
   deviceId: string;
   deviceName: string;
   isCloudSyncActive: boolean;
+  loginAt: string;
 }
 
 export interface UserDevice {
   id: string;
   deviceId: string;
   deviceName: string;
-  deviceType: string;
-  lastActive: string;
+  deviceType: 'desktop' | 'mobile' | 'tablet' | 'other';
   ipAddress?: string;
+  browser?: string;
+  os?: string;
+  lastActive: string;
   isCurrent: boolean;
 }

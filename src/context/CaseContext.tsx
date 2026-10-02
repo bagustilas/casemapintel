@@ -5,6 +5,7 @@ import { CaseData, ScoreBreakdown } from '@/types/case';
 import { calculateCaseScore } from '@/lib/scoring';
 import { SAMPLE_CASE_EMBEZZLEMENT } from '@/lib/dummy-data';
 import { getSupabaseClient, isSupabaseConfigured, mapCaseToDb, mapDbToCase } from '@/lib/supabase/client';
+import { isDemoTrialMode } from '@/lib/license';
 import { useAuth } from './AuthContext';
 
 type ViewMode = 'dashboard' | 'wizard' | 'results';
@@ -18,6 +19,9 @@ interface CaseContextType {
   isSaving: boolean;
   lastSavedAt: Date | null;
   isCloudSyncing: boolean;
+  isDemoMode: boolean;
+  isUpgradeModalOpen: boolean;
+  setIsUpgradeModalOpen: (open: boolean) => void;
 
   // Navigation
   setViewMode: (mode: ViewMode) => void;
@@ -27,7 +31,7 @@ interface CaseContextType {
   prevStep: () => void;
 
   // Case Actions
-  newCase: () => void;
+  newCase: () => { success: boolean; message?: string };
   openCase: (id: string) => void;
   openCaseResults: (id: string) => void;
   saveCurrentCase: (manualToast?: boolean) => Promise<void>;
@@ -122,6 +126,9 @@ export function CaseProvider({ children }: { children: React.ReactNode }) {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState<boolean>(false);
+
+  const isDemoMode = isDemoTrialMode(session);
 
   // Load cases from local storage or cloud on mount
   useEffect(() => {
@@ -253,12 +260,23 @@ export function CaseProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const newCase = () => {
+  // Block creating new cases in Demo Mode
+  const newCase = (): { success: boolean; message?: string } => {
+    if (isDemoMode) {
+      setIsUpgradeModalOpen(true);
+      return {
+        success: false,
+        message:
+          'Fitur pembuatan analisis perkara baru dikunci pada Mode Demo / Uji Coba. Silakan perbarui ke Lisensi PRO atau Law Firm untuk membuat berkas perkara baru tanpa batas.',
+      };
+    }
+
     const fresh = createEmptyCase(session?.licenseKey);
     setCurrentCase(fresh);
     setCurrentStep(0);
     setViewMode('wizard');
     localStorage.setItem(CURRENT_CASE_ID_KEY, fresh.id);
+    return { success: true };
   };
 
   const openCase = (id: string) => {
@@ -409,6 +427,9 @@ export function CaseProvider({ children }: { children: React.ReactNode }) {
         isSaving,
         lastSavedAt,
         isCloudSyncing,
+        isDemoMode,
+        isUpgradeModalOpen,
+        setIsUpgradeModalOpen,
         setViewMode,
         setCurrentStep,
         goToStep,
