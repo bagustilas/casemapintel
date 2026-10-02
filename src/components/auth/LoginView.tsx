@@ -282,10 +282,10 @@ export function LoginView() {
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                              Masuk Mode Demo (Kemampuan Terbatas)
+                              Masuk Mode Demo
                             </h4>
                             <span className="rounded bg-amber-200 px-1.5 py-0.2 text-[9px] font-bold text-amber-900 dark:bg-amber-900 dark:text-amber-200">
-                              DEMO TRIAL
+                              DEMO
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
