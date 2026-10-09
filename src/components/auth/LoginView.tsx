@@ -30,9 +30,9 @@ const USER_ROLES: UserRole[] = [
 ];
 
 export function LoginView() {
-  const { login, loginAsSuperAdmin, quickLoginAs, isCloudConnected } = useAuth();
+  const { login, quickLoginAs, isCloudConnected } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'login' | 'quick' | 'admin'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'quick'>('login');
   const [waNumber, setWaNumber] = useState('');
   const [licenseKey, setLicenseKey] = useState('');
   const [fullName, setFullName] = useState('');
@@ -57,10 +57,6 @@ export function LoginView() {
     }
   };
 
-  // Super Admin PIN State
-  const [adminPin, setAdminPin] = useState('');
-  const [adminWa, setAdminWa] = useState('');
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -70,19 +66,6 @@ export function LoginView() {
     setFeedback(null);
 
     const res = await login(waNumber, licenseKey, fullName, role, organization);
-    setIsSubmitting(false);
-
-    if (!res.success) {
-      setFeedback(res);
-    }
-  };
-
-  const handleSuperAdminSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setFeedback(null);
-
-    const res = await loginAsSuperAdmin(adminPin, adminWa || '0800-SUPER-ADMIN');
     setIsSubmitting(false);
 
     if (!res.success) {
@@ -163,22 +146,6 @@ export function LoginView() {
                 >
                   <Sparkles className="h-3.5 w-3.5 text-amber-600" />
                   <span>Mode Demo</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('admin');
-                    setFeedback(null);
-                  }}
-                  className={`pb-3 px-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
-                    activeTab === 'admin'
-                      ? 'border-rose-700 text-rose-800 dark:border-rose-400 dark:text-rose-400'
-                      : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400'
-                  }`}
-                >
-                  <Shield className="h-3.5 w-3.5 text-rose-600" />
-                  <span>Super Admin</span>
                 </button>
               </div>
 
@@ -330,63 +297,6 @@ export function LoginView() {
                   </div>
                 </div>
               )}
-
-              {/* 3. PORTAL SUPER ADMIN */}
-              {activeTab === 'admin' && (
-                <form onSubmit={handleSuperAdminSubmit} className="space-y-4">
-                  <div className="rounded-2xl bg-rose-50 p-4 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900 space-y-1">
-                    <div className="flex items-center gap-2 text-rose-900 dark:text-rose-300 font-bold text-xs">
-                      <Shield className="h-4 w-4" />
-                      <span>Portal Khusus Super Admin / Pengelola</span>
-                    </div>
-                    <p className="text-[11px] text-rose-800/90 dark:text-rose-300/90 leading-relaxed">
-                      Hanya Super Admin yang berwenang membuat, menerbitkan, dan mengelola kunci lisensi PRO, Law Firm, dan Uji Coba. Masukkan PIN Super Admin resmi.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                      PIN Rahasia / Kunci Master Super Admin <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                      <input
-                        type="password"
-                        required
-                        value={adminPin}
-                        onChange={(e) => setAdminPin(e.target.value)}
-                        placeholder="Masukkan PIN Super Admin (mis. admin2026)"
-                        className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-xs sm:text-sm font-mono font-bold text-slate-900 shadow-sm focus:border-rose-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">
-                      Nomor WhatsApp Admin (Opsional)
-                    </label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                      <input
-                        type="text"
-                        value={adminWa}
-                        onChange={(e) => setAdminWa(e.target.value)}
-                        placeholder="mis. 0800-SUPER-ADMIN"
-                        className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-8 pr-3 text-xs font-medium text-slate-900 shadow-sm focus:border-rose-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full rounded-2xl bg-rose-700 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-rose-800 dark:bg-rose-600 dark:hover:bg-rose-700 transition flex items-center justify-center gap-2 mt-4"
-                  >
-                    <span>{isSubmitting ? 'Memverifikasi...' : 'Masuk sebagai Super Admin'}</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                </form>
-              )}
             </div>
 
             {/* Bottom Status Note */}
@@ -395,7 +305,14 @@ export function LoginView() {
                 <span className={`h-2 w-2 rounded-full ${isCloudConnected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                 <span>{isCloudConnected ? 'Backend Supabase Terhubung' : 'Mode Offline / Standalone'}</span>
               </div>
-              <span>CaseIntel v2.0</span>
+              <div className="flex items-center gap-3">
+                <a
+                  href="/superadmin"
+                  className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition underline underline-offset-2"
+                >
+                  Portal Super Admin →
+                </a>
+              </div>
             </div>
           </div>
 
