@@ -16,6 +16,8 @@ import {
   ShieldAlert,
   Shield,
   CheckCircle2,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 const USER_ROLES: UserRole[] = [
@@ -36,6 +38,24 @@ export function LoginView() {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<UserRole>('Advokat / Penasihat Hukum');
   const [organization, setOrganization] = useState('');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Sync dark mode state on mount
+  React.useEffect(() => {
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
+  }, []);
+
+  const toggleDarkMode = () => {
+    const nextDark = !isDarkMode;
+    setIsDarkMode(nextDark);
+    if (nextDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('caseintel_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('caseintel_theme', 'light');
+    }
+  };
 
   // Super Admin PIN State
   const [adminPin, setAdminPin] = useState('');
@@ -77,7 +97,19 @@ export function LoginView() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8 relative">
+      {/* Absolute Dark Mode Toggle Button on Top Right */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white/90 text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/90 dark:text-slate-200 dark:hover:bg-slate-800 transition backdrop-blur-sm"
+          title="Ganti Tema Gelap / Terang"
+        >
+          {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </button>
+      </div>
+
       <div className="max-w-4xl mx-auto w-full space-y-8 my-auto">
         {/* Brand Header */}
         <div className="text-center space-y-3">

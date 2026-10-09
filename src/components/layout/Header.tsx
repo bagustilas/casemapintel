@@ -36,6 +36,12 @@ export function Header() {
 
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Sync dark mode state with HTML class on mount
+  useEffect(() => {
+    const isDark = document.documentElement.classList.contains('dark');
+    setIsDarkMode(isDark);
+  }, []);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -48,11 +54,14 @@ export function Header() {
   }, []);
 
   const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    if (!isDarkMode) {
+    const nextDark = !isDarkMode;
+    setIsDarkMode(nextDark);
+    if (nextDark) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('caseintel_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('caseintel_theme', 'light');
     }
   };
 
