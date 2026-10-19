@@ -111,31 +111,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (stored) {
         const parsed: UserSession = JSON.parse(stored);
         setSession(parsed);
-
-        // Fetch Supabase user profile id if not yet cached in session
-        if (!parsed.userId && isSupabaseConfigured() && parsed.whatsappNumber) {
-          const supabase = getSupabaseClient();
-          if (supabase) {
-            supabase
-              .from('user_profiles')
-              .select('id')
-              .eq('whatsapp_number', parsed.whatsappNumber)
-              .maybeSingle()
-              .then(({ data }) => {
-                if (data?.id) {
-                  setSession((prev) => {
-                    if (!prev) return null;
-                    const updated = { ...prev, userId: data.id };
-                    try {
-                      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
-                    } catch {}
-                    return updated;
-                  });
-                }
-              })
-              .catch((err) => console.warn('Could not fetch user profile id:', err));
-          }
-        }
       }
       setIsCloudConnected(isSupabaseConfigured());
       setIssuedLicenses(getIssuedLicensesList());
@@ -262,7 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        const { data: profileData } = await supabase.from('user_profiles').upsert(
+        await supabase.from('user_profiles').upsert(
           {
             whatsapp_number: cleanWA,
             license_key: lic.key,
@@ -272,11 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'whatsapp_number' }
-        ).select('id').maybeSingle();
-
-        if (profileData?.id) {
-          newSession.userId = profileData.id;
-        }
+        );
       } catch (e) {
         console.warn('Supabase profile sync error during login:', e);
       }
