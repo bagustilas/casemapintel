@@ -203,6 +203,7 @@ export interface LicenseInfo {
 }
 
 export interface UserSession {
+  userId?: string;
   whatsappNumber: string;
   licenseKey: string;
   fullName: string;

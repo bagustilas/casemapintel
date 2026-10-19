@@ -1,7 +1,7 @@
 import { CaseData } from '@/types/case';
 
 export const SAMPLE_CASE_EMBEZZLEMENT: CaseData = {
-  id: 'sample-case-001',
+  id: 'c47a0001-0000-4000-8000-000000000001',
   licenseKey: 'DEMO-CASEINTEL-2026',
   createdAt: '2026-06-01T08:00:00.000Z',
   updatedAt: '2026-06-15T14:30:00.000Z',
