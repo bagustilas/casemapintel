@@ -6,6 +6,8 @@ import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import {
   validateLicenseKey,
   generateNewLicenseKey,
+  deleteIssuedLicense,
+  clearAllIssuedLicenses,
   PRESET_LICENSES,
   isSuperAdminUser,
   SUPERADMIN_SECRET_PIN,
@@ -41,8 +43,11 @@ interface AuthContextType {
   generateLicenseAsAdmin: (
     tier: LicenseTier,
     durationDays: number,
-    issuedTo: string
-  ) => { success: boolean; license?: LicenseInfo; message: string };
+    issuedTo: string,
+    phoneNumber?: string
+  ) => Promise<{ success: boolean; license?: LicenseInfo; message: string }>;
+  deleteLicenseAsAdmin: (key: string) => Promise<{ success: boolean; message: string }>;
+  clearAllLicensesAsAdmin: () => Promise<{ success: boolean; message: string }>;
   toggleCloudSync: (enable: boolean) => void;
   removeDevice: (deviceId: string) => Promise<void>;
   logoutOtherDevices: () => Promise<void>;
@@ -201,7 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Nomor WhatsApp wajib diisi.' };
     }
 
-    const validation = validateLicenseKey(cleanKey);
+    const validation = validateLicenseKey(cleanKey, cleanWA);
     if (!validation.valid || !validation.license) {
       return { success: false, message: validation.message };
     }
@@ -273,7 +278,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const generateLicenseAsAdmin = (
     tier: LicenseTier,
     durationDays: number,
-    issuedTo: string
+    issuedTo: string,
+    phoneNumber?: string
   ): { success: boolean; license?: LicenseInfo; message: string } => {
     if (!isSuperAdmin) {
       return {
@@ -282,12 +288,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    const newLic = generateNewLicenseKey(tier, durationDays, issuedTo);
+    const newLic = generateNewLicenseKey(tier, durationDays, issuedTo, phoneNumber);
     setIssuedLicenses(getIssuedLicensesList());
     return {
       success: true,
       license: newLic,
       message: `Kunci lisensi ${newLic.label} berhasil dibuat oleh Super Admin!`,
+    };
+  };
+
+  const deleteLicenseAsAdmin = (key: string): { success: boolean; message: string } => {
+    if (!isSuperAdmin) {
+      return {
+        success: false,
+        message: 'Akses Ditolak: Hanya Super Admin yang dapat menghapus kunci lisensi.',
+      };
+    }
+
+    deleteIssuedLicense(key);
+    setIssuedLicenses(getIssuedLicensesList());
+    return {
+      success: true,
+      message: `Kunci lisensi ${key} berhasil dihapus dari daftar terdaftar.`,
+    };
+  };
+
+  const clearAllLicensesAsAdmin = (): { success: boolean; message: string } => {
+    if (!isSuperAdmin) {
+      return {
+        success: false,
+        message: 'Akses Ditolak: Hanya Super Admin yang dapat mengosongkan daftar lisensi.',
+      };
+    }
+
+    clearAllIssuedLicenses();
+    setIssuedLicenses([]);
+    return {
+      success: true,
+      message: 'Semua lisensi yang diterbitkan berhasil dibersihkan.',
     };
   };
 
@@ -439,6 +477,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updateProfile,
         updateLicense,
         generateLicenseAsAdmin,
+        deleteLicenseAsAdmin,
+        clearAllLicensesAsAdmin,
         toggleCloudSync,
         removeDevice,
         logoutOtherDevices,

@@ -195,6 +195,7 @@ export interface LicenseInfo {
   label: string;
   maxDevices: number;
   issuedTo: string;
+  phoneNumber?: string;
   issuedAt: string;
   expiresAt: string;
   status: 'active' | 'expired' | 'suspended';

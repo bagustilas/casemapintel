@@ -35,6 +35,8 @@ export default function SuperAdminPage() {
     session,
     loginAsSuperAdmin,
     generateLicenseAsAdmin,
+    deleteLicenseAsAdmin,
+    clearAllLicensesAsAdmin,
     logout,
     issuedLicenses,
     devices,
@@ -52,6 +54,7 @@ export default function SuperAdminPage() {
   const [genTier, setGenTier] = useState<LicenseTier>('PRO');
   const [genDays, setGenDays] = useState(365);
   const [genIssuedTo, setGenIssuedTo] = useState('');
+  const [genPhone, setGenPhone] = useState('');
   const [generatedLic, setGeneratedLic] = useState<LicenseInfo | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -95,11 +98,12 @@ export default function SuperAdminPage() {
 
   const handleGenerateLicense = (e: React.FormEvent) => {
     e.preventDefault();
-    const res = generateLicenseAsAdmin(genTier, genDays, genIssuedTo);
+    const res = generateLicenseAsAdmin(genTier, genDays, genIssuedTo, genPhone);
     if (res.success && res.license) {
       setGeneratedLic(res.license);
       showToast('success', res.message);
       setGenIssuedTo('');
+      setGenPhone('');
     } else {
       showToast('error', res.message);
     }
@@ -169,7 +173,7 @@ export default function SuperAdminPage() {
                     required
                     value={adminPin}
                     onChange={(e) => setAdminPin(e.target.value)}
-                    placeholder="Masukkan PIN Master (mis. admin2026)"
+                    placeholder="Masukkan PIN Master"
                     className="w-full rounded-xl border border-slate-700 bg-slate-800/90 py-2.5 pl-10 pr-3 text-xs sm:text-sm font-mono font-bold text-white shadow-inner focus:border-rose-500 focus:outline-none"
                   />
                 </div>
@@ -343,7 +347,7 @@ export default function SuperAdminPage() {
           </h2>
 
           <form onSubmit={handleGenerateLicense} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                   Paket Lisensi <span className="text-rose-500">*</span>
@@ -381,15 +385,31 @@ export default function SuperAdminPage() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                  Diterbitkan Untuk (Nama/Kantor)
+                  Diterbitkan Untuk
                 </label>
                 <input
                   type="text"
                   value={genIssuedTo}
                   onChange={(e) => setGenIssuedTo(e.target.value)}
-                  placeholder="mis. Advokat Budi Santoso / Kantor Hukum XYZ"
+                  placeholder="mis. Advokat Budi Santoso"
                   className="w-full rounded-2xl border border-slate-300 bg-white py-2.5 px-3 text-xs font-medium text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                  No. HP / Kunci WA (Kunci Akses)
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={genPhone}
+                    onChange={(e) => setGenPhone(e.target.value)}
+                    placeholder="mis. 081234567890"
+                    className="w-full rounded-2xl border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-xs font-medium text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
               </div>
             </div>
 
@@ -415,32 +435,67 @@ export default function SuperAdminPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-900 border border-rose-200 dark:border-rose-800">
-                <div className="space-y-0.5">
-                  <code className="font-mono text-base sm:text-lg font-bold text-rose-700 dark:text-rose-400">
-                    {generatedLic.key}
-                  </code>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <code className="font-mono text-base sm:text-lg font-bold text-rose-700 dark:text-rose-400">
+                      {generatedLic.key}
+                    </code>
+                    {generatedLic.phoneNumber && (
+                      <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-mono flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        <span>Kunci NoHP: {generatedLic.phoneNumber}</span>
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     {generatedLic.label} · Diterbitkan untuk: <strong>{generatedLic.issuedTo}</strong> · Maksimal {generatedLic.maxDevices} Perangkat
                   </p>
+                  {generatedLic.phoneNumber && (
+                    <p className="text-[10.5px] text-emerald-700 dark:text-emerald-400 font-medium">
+                      💡 Kunci Lisensi acak ini terikat khusus dengan No. WhatsApp: <strong>{generatedLic.phoneNumber}</strong>. Pengguna wajib memasukkan nomor WhatsApp tersebut saat login.
+                    </p>
+                  )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(generatedLic.key)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-rose-700 transition flex-shrink-0"
-                >
-                  {copiedKey === generatedLic.key ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      <span>Tersalin!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      <span>Salin Kunci</span>
-                    </>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(generatedLic.key)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-rose-700 transition"
+                  >
+                    {copiedKey === generatedLic.key ? (
+                      <>
+                        <Check className="h-4 w-4" />
+                        <span>Tersalin!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        <span>Salin Kunci</span>
+                      </>
+                    )}
+                  </button>
+
+                  {generatedLic.phoneNumber && (
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(generatedLic.phoneNumber!)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 transition"
+                    >
+                      {copiedKey === generatedLic.phoneNumber ? (
+                        <>
+                          <Check className="h-4 w-4" />
+                          <span>NoHP Tersalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Phone className="h-3.5 w-3.5" />
+                          <span>Salin No.HP</span>
+                        </>
+                      )}
+                    </button>
                   )}
-                </button>
+                </div>
               </div>
             </div>
           )}
@@ -448,14 +503,32 @@ export default function SuperAdminPage() {
 
         {/* Issued Licenses History */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold font-serif text-slate-900 dark:text-white flex items-center gap-2">
-              <Key className="h-4 w-4 text-amber-600" />
-              <span>Daftar Kunci Lisensi Terdaftar &amp; Diterbitkan</span>
-            </h3>
-            <span className="text-xs text-slate-400">
-              {issuedLicenses.length} Lisensi Mandiri
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h3 className="text-lg font-bold font-serif text-slate-900 dark:text-white flex items-center gap-2">
+                <Key className="h-4 w-4 text-amber-600" />
+                <span>Daftar Kunci Lisensi Terdaftar &amp; Diterbitkan</span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {issuedLicenses.length} Lisensi Mandiri Diterbitkan Super Admin
+              </p>
+            </div>
+
+            {issuedLicenses.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('Apakah Anda yakin ingin MENGHAPUS SEMUA daftar lisensi yang telah diterbitkan?')) {
+                    const res = clearAllLicensesAsAdmin();
+                    showToast(res.success ? 'success' : 'error', res.message);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/60 dark:text-rose-300 transition self-start sm:self-auto cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Hapus Semua Lisensi Terbitan</span>
+              </button>
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -463,6 +536,7 @@ export default function SuperAdminPage() {
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   <th className="py-3 px-3">Kunci Lisensi</th>
+                  <th className="py-3 px-3">No. HP / Kunci WA</th>
                   <th className="py-3 px-3">Paket</th>
                   <th className="py-3 px-3">Penerima</th>
                   <th className="py-3 px-3">Masa Berlaku</th>
@@ -476,6 +550,7 @@ export default function SuperAdminPage() {
                   <td className="py-3 px-3 font-mono font-bold text-rose-700 dark:text-rose-400">
                     CASEINTEL-SUPERADMIN-ROOT
                   </td>
+                  <td className="py-3 px-3 font-mono text-slate-400">admin2026 (PIN)</td>
                   <td className="py-3 px-3">
                     <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-bold text-rose-900 dark:bg-rose-950 dark:text-rose-300 font-mono">
                       SUPERADMIN
@@ -499,6 +574,7 @@ export default function SuperAdminPage() {
                   <td className="py-3 px-3 font-mono font-bold text-amber-700 dark:text-amber-400">
                     CASEINTEL-PRO-2026
                   </td>
+                  <td className="py-3 px-3 font-mono text-slate-500">081234567890</td>
                   <td className="py-3 px-3">
                     <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-300 font-mono">
                       PRO LENGKAP
@@ -522,6 +598,7 @@ export default function SuperAdminPage() {
                   <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
                     CASEINTEL-FIRM-2026
                   </td>
+                  <td className="py-3 px-3 font-mono text-slate-500">081299887766</td>
                   <td className="py-3 px-3">
                     <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-bold text-slate-800 dark:bg-slate-800 dark:text-slate-200 font-mono">
                       ENTERPRISE
@@ -549,6 +626,9 @@ export default function SuperAdminPage() {
                       <td className="py-3 px-3 font-mono font-bold text-slate-900 dark:text-white">
                         {lic.key}
                       </td>
+                      <td className="py-3 px-3 font-mono text-emerald-700 dark:text-emerald-400 font-semibold">
+                        {lic.phoneNumber || '-'}
+                      </td>
                       <td className="py-3 px-3">
                         <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-mono">
                           {lic.tier}
@@ -562,13 +642,36 @@ export default function SuperAdminPage() {
                       </td>
                       <td className="py-3 px-3 text-slate-500">{lic.maxDevices} Dev</td>
                       <td className="py-3 px-3 text-right">
-                        <button
-                          onClick={() => copyToClipboard(lic.key)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                          title="Salin Kunci"
-                        >
-                          {copiedKey === lic.key ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => copyToClipboard(lic.key)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                            title="Salin Kunci Lisensi"
+                          >
+                            {copiedKey === lic.key ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                          </button>
+                          {lic.phoneNumber && (
+                            <button
+                              onClick={() => copyToClipboard(lic.phoneNumber!)}
+                              className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition cursor-pointer"
+                              title="Salin No. HP Kunci"
+                            >
+                              {copiedKey === lic.phoneNumber ? <Check className="h-4 w-4 text-emerald-600" /> : <Phone className="h-3.5 w-3.5" />}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (confirm(`Hapus lisensi ${lic.key} (${lic.issuedTo})?`)) {
+                                const res = deleteLicenseAsAdmin(lic.key);
+                                showToast(res.success ? 'success' : 'error', res.message);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer"
+                            title="Hapus Lisensi Ini"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

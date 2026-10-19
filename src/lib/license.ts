@@ -6,7 +6,7 @@ export const SUPERADMIN_MASTER_KEYS = [
   'SUPERADMIN-MASTER',
 ];
 
-export const SUPERADMIN_SECRET_PIN = 'admin2026';
+export const SUPERADMIN_SECRET_PIN = '35766121';
 
 export const PRESET_LICENSES: Record<string, LicenseInfo> = {
   'CASEINTEL-SUPERADMIN-ROOT': {
@@ -25,8 +25,8 @@ export const PRESET_LICENSES: Record<string, LicenseInfo> = {
       'Akses Analisis Perkara Lengkap Tanpa Batas',
     ],
   },
-  'CASEINTEL-PRO-2026': {
-    key: 'CASEINTEL-PRO-2026',
+  'CASEINTEL-PRO': {
+    key: 'CASEINTEL-PRO',
     tier: 'PRO',
     label: 'Lisensi Profesional Advokat (Pro Lengkap)',
     maxDevices: 5,
@@ -44,8 +44,8 @@ export const PRESET_LICENSES: Record<string, LicenseInfo> = {
       'Cloud Backup & Sinkronisasi Supabase',
     ],
   },
-  'CASEINTEL-FIRM-2026': {
-    key: 'CASEINTEL-FIRM-2026',
+  'CASEINTEL-FIRM': {
+    key: 'CASEINTEL-FIRM',
     tier: 'FIRM_ENTERPRISE',
     label: 'Lisensi Law Firm & Institusi (Enterprise)',
     maxDevices: 15,
@@ -118,16 +118,33 @@ export function isDemoTrialMode(session?: UserSession | null): boolean {
   );
 }
 
-export function validateLicenseKey(rawKey: string): {
+export function normalizePhoneNumber(raw: string): string {
+  const digits = (raw || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('62')) {
+    return '0' + digits.substring(2);
+  }
+  return digits;
+}
+
+function generateRandomCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const p1 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const p2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  return `${p1}-${p2}`;
+}
+
+export function validateLicenseKey(rawKey: string, rawPhone?: string): {
   valid: boolean;
   license: LicenseInfo | null;
   message: string;
   isSuperAdmin?: boolean;
 } {
   const cleanKey = (rawKey || '').trim().toUpperCase();
+  const cleanPhone = normalizePhoneNumber(rawPhone || '');
 
-  if (!cleanKey) {
-    return { valid: false, license: null, message: 'Kunci lisensi wajib diisi.' };
+  if (!cleanKey && !cleanPhone) {
+    return { valid: false, license: null, message: 'Kunci lisensi atau Nomor WhatsApp wajib diisi.' };
   }
 
   // Check Super Admin Keys
@@ -146,7 +163,7 @@ export function validateLicenseKey(rawKey: string): {
     return { valid: true, license: lic, message: 'Autentikasi Super Admin Berhasil!', isSuperAdmin: true };
   }
 
-  // Check Preset Licenses
+  // Check Preset Licenses by Key
   if (PRESET_LICENSES[cleanKey]) {
     const lic = PRESET_LICENSES[cleanKey];
     const isExpired = new Date(lic.expiresAt).getTime() < Date.now();
@@ -160,23 +177,98 @@ export function validateLicenseKey(rawKey: string): {
     return { valid: true, license: lic, message: 'Kunci lisensi valid dan aktif.' };
   }
 
+  // Check Issued Licenses by Key
+  const issuedList = getIssuedLicensesList();
+  const foundIssuedByKey = issuedList.find((l) => l.key.toUpperCase() === cleanKey);
+
+  if (foundIssuedByKey) {
+    const isExpired = new Date(foundIssuedByKey.expiresAt).getTime() < Date.now();
+    if (isExpired) {
+      return {
+        valid: false,
+        license: { ...foundIssuedByKey, status: 'expired' },
+        message: 'Lisensi telah kedaluwarsa. Silakan hubungi Super Admin.',
+      };
+    }
+
+    // CHECK PHONE BINDING:
+    if (foundIssuedByKey.phoneNumber) {
+      const boundPhone = normalizePhoneNumber(foundIssuedByKey.phoneNumber);
+      if (!cleanPhone) {
+        return {
+          valid: false,
+          license: null,
+          message: 'Nomor WhatsApp wajib diisi untuk memverifikasi kepemilikan lisensi ini.',
+        };
+      }
+      if (boundPhone !== cleanPhone) {
+        return {
+          valid: false,
+          license: null,
+          message: `Kunci lisensi (${cleanKey}) terikat khusus dengan nomor HP ${foundIssuedByKey.phoneNumber}. Nomor WhatsApp yang Anda masukkan (${cleanPhone}) tidak sesuai.`,
+        };
+      }
+    } else if (cleanPhone) {
+      // First time login -> lock/bind this license key to this phone number
+      foundIssuedByKey.phoneNumber = cleanPhone;
+      saveIssuedLicense(foundIssuedByKey);
+    }
+
+    return {
+      valid: true,
+      license: foundIssuedByKey,
+      message: `Lisensi aktif (${foundIssuedByKey.label}) terverifikasi!`,
+    };
+  }
+
+  // Check Issued Licenses by Phone Number (if user typed phone number in license field)
+  if (cleanPhone) {
+    const foundIssuedByPhone = issuedList.find(
+      (l) => l.phoneNumber && normalizePhoneNumber(l.phoneNumber) === cleanPhone
+    );
+    if (foundIssuedByPhone && (cleanKey === cleanPhone || cleanKey === '')) {
+      const isExpired = new Date(foundIssuedByPhone.expiresAt).getTime() < Date.now();
+      if (isExpired) {
+        return {
+          valid: false,
+          license: { ...foundIssuedByPhone, status: 'expired' },
+          message: 'Lisensi telah kedaluwarsa. Silakan hubungi Super Admin.',
+        };
+      }
+      return {
+        valid: true,
+        license: foundIssuedByPhone,
+        message: `Lisensi aktif (${foundIssuedByPhone.label}) terverifikasi via Nomor WhatsApp!`,
+      };
+    }
+  }
+
   // Support custom generated keys format: CASEINTEL-[TIER]-[RANDOM]
   if (cleanKey.startsWith('CASEINTEL-') || cleanKey.startsWith('CI-')) {
     const isFirm = cleanKey.includes('FIRM') || cleanKey.includes('ENTERPRISE');
     const isLifetime = cleanKey.includes('LIFETIME') || cleanKey.includes('VIP');
-    const tier: LicenseTier = isFirm ? 'FIRM_ENTERPRISE' : isLifetime ? 'LIFETIME' : 'PRO';
+    const isTrial = cleanKey.includes('DEMO') || cleanKey.includes('TRIAL');
+    const tier: LicenseTier = isTrial ? 'TRIAL' : isFirm ? 'FIRM_ENTERPRISE' : isLifetime ? 'LIFETIME' : 'PRO';
 
     const customLic: LicenseInfo = {
       key: cleanKey,
       tier,
-      label: isFirm ? 'Lisensi Law Firm Enterprise' : isLifetime ? 'Lisensi Seumur Hidup VIP' : 'Lisensi Advokat Pro Lengkap',
-      maxDevices: isFirm ? 15 : isLifetime ? 50 : 5,
-      issuedTo: 'Pengguna Terverifikasi',
+      label:
+        tier === 'FIRM_ENTERPRISE'
+          ? 'Lisensi Law Firm Enterprise'
+          : tier === 'LIFETIME'
+          ? 'Lisensi Seumur Hidup VIP'
+          : tier === 'TRIAL'
+          ? 'Akun Demo Terbatas'
+          : 'Lisensi Advokat Pro Lengkap',
+      maxDevices: tier === 'FIRM_ENTERPRISE' ? 15 : tier === 'LIFETIME' ? 50 : tier === 'TRIAL' ? 1 : 5,
+      issuedTo: cleanPhone ? `Pengguna (${cleanPhone})` : 'Pengguna Terverifikasi',
+      phoneNumber: cleanPhone || undefined,
       issuedAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + (isLifetime ? 36500 : 730) * 24 * 3600 * 1000).toISOString(),
       status: 'active',
       features: [
-        'Buat Analisis Perkara Baru Tanpa Batas',
+        tier !== 'TRIAL' ? 'Buat Analisis Perkara Baru Tanpa Batas' : 'Akses Eksplorasi Berkas Contoh Saja',
         'Papan Intelijen (Graph Relasi Interaktif)',
         'Simulasi Alur Peristiwa (Step-by-step)',
         'Ekspor Laporan PDF & Risalah Gelar Otomatis',
@@ -186,36 +278,14 @@ export function validateLicenseKey(rawKey: string): {
       ],
     };
 
-    return { valid: true, license: customLic, message: 'Kunci lisensi Pro Lengkap berhasil diaktifkan!' };
-  }
-
-  // Generic fallback for custom keys
-  if (cleanKey.length >= 6) {
-    const genericLic: LicenseInfo = {
-      key: cleanKey,
-      tier: 'PRO',
-      label: 'Lisensi Advokat Pro Lengkap',
-      maxDevices: 5,
-      issuedTo: 'Pengguna CaseIntel',
-      issuedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 730 * 24 * 3600 * 1000).toISOString(),
-      status: 'active',
-      features: [
-        'Buat Analisis Perkara Baru Tanpa Batas',
-        'Papan Intelijen (Graph Relasi Interaktif)',
-        'Simulasi Alur Peristiwa (Step-by-step)',
-        'Ekspor Laporan PDF & Risalah Gelar Otomatis',
-        'Audit Formil & Cacat Yuridis Praperadilan',
-        'Multi-device Sync & Supabase Cloud',
-      ],
-    };
-    return { valid: true, license: genericLic, message: 'Kunci lisensi Pro valid dan aktif.' };
+    saveIssuedLicense(customLic);
+    return { valid: true, license: customLic, message: 'Kunci lisensi berhasil diaktifkan dan ditautkan ke nomor Anda!' };
   }
 
   return {
     valid: false,
     license: null,
-    message: 'Format kunci lisensi tidak valid (minimal 6 karakter alfanumerik).',
+    message: 'Kunci lisensi tidak valid atau tidak terdaftar. Hubungi Super Admin.',
   };
 }
 
@@ -243,44 +313,69 @@ export function saveIssuedLicense(lic: LicenseInfo) {
   }
 }
 
+export function deleteIssuedLicense(key: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getIssuedLicensesList();
+    const updated = current.filter((l) => l.key.toUpperCase() !== key.toUpperCase());
+    localStorage.setItem(GENERATED_LICENSES_STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.error('Failed to delete issued license:', e);
+  }
+}
+
+export function clearAllIssuedLicenses() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(GENERATED_LICENSES_STORAGE_KEY);
+  } catch (e) {
+    console.error('Failed to clear issued licenses:', e);
+  }
+}
+
 export function generateNewLicenseKey(
   tier: LicenseTier = 'PRO',
   durationDays: number = 365,
-  issuedTo: string = 'Pengguna Baru'
+  issuedTo: string = 'Pengguna Baru',
+  phoneNumber?: string
 ): LicenseInfo {
-  const randPart =
-    Math.random().toString(36).substring(2, 6).toUpperCase() +
-    '-' +
-    Math.random().toString(36).substring(2, 6).toUpperCase();
+  const cleanPhone = phoneNumber ? normalizePhoneNumber(phoneNumber) : '';
+  const randPart = generateRandomCode();
 
   const prefix =
     tier === 'FIRM_ENTERPRISE'
       ? 'CASEINTEL-FIRM'
       : tier === 'LIFETIME'
       ? 'CASEINTEL-LIFETIME'
+      : tier === 'TRIAL'
+      ? 'CASEINTEL-DEMO'
       : 'CASEINTEL-PRO';
 
+  // Key is ALWAYS random format e.g. CASEINTEL-PRO-WXX5-IX9D
   const key = `${prefix}-${randPart}`;
 
   const maxDevices =
-    tier === 'FIRM_ENTERPRISE' ? 15 : tier === 'LIFETIME' ? 50 : 5;
+    tier === 'FIRM_ENTERPRISE' ? 15 : tier === 'LIFETIME' ? 50 : tier === 'TRIAL' ? 1 : 5;
 
   const newLic: LicenseInfo = {
     key,
-    tier: tier === 'TRIAL' ? 'PRO' : tier,
+    tier: tier === 'TRIAL' ? 'TRIAL' : tier,
     label:
       tier === 'FIRM_ENTERPRISE'
         ? 'Lisensi Law Firm Enterprise (Multi-User)'
         : tier === 'LIFETIME'
         ? 'Lisensi Seumur Hidup VIP (Lifetime)'
+        : tier === 'TRIAL'
+        ? 'Akun Demo Terbatas'
         : 'Lisensi Advokat Pro Lengkap',
     maxDevices,
-    issuedTo: issuedTo.trim() || 'Pengguna Baru',
+    issuedTo: issuedTo.trim() || (cleanPhone ? `Klien (${cleanPhone})` : 'Pengguna Baru'),
+    phoneNumber: cleanPhone || undefined,
     issuedAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString(),
     status: 'active',
     features: [
-      'Buat Analisis Perkara Baru Tanpa Batas',
+      tier !== 'TRIAL' ? 'Buat Analisis Perkara Baru Tanpa Batas' : 'Akses Eksplorasi Berkas Contoh Saja',
       'Papan Intelijen (Graph Relasi Interaktif)',
       'Simulasi Alur Peristiwa (Step-by-step)',
       'Ekspor Laporan PDF & Risalah Gelar Otomatis',

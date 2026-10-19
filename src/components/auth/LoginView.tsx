@@ -180,9 +180,9 @@ export function LoginView() {
                   <div>
                     <div className="flex justify-between items-center mb-1.5">
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Kunci Lisensi Resmi <span className="text-rose-500">*</span>
+                        Kunci Lisensi Terdaftar <span className="text-rose-500">*</span>
                       </label>
-                      <span className="text-[10.5px] text-slate-400">Diberikan oleh Super Admin / Kantor</span>
+                      <span className="text-[10.5px] text-slate-400">Kode Lisensi Resmi Super Admin</span>
                     </div>
                     <div className="relative">
                       <Key className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
@@ -191,7 +191,7 @@ export function LoginView() {
                         required
                         value={licenseKey}
                         onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
-                        placeholder="mis. CASEINTEL-PRO-2026 atau lisensi Anda"
+                        placeholder="mis. CASEINTEL-PRO-WXX5-IX9D"
                         className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-xs sm:text-sm font-mono font-bold uppercase text-slate-900 shadow-sm focus:border-amber-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                       />
                     </div>

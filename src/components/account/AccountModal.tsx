@@ -57,6 +57,8 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
     updateProfile,
     updateLicense,
     generateLicenseAsAdmin,
+    deleteLicenseAsAdmin,
+    clearAllLicensesAsAdmin,
     toggleCloudSync,
     removeDevice,
     logoutOtherDevices,
@@ -83,6 +85,7 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
   const [genTier, setGenTier] = useState<LicenseTier>('PRO');
   const [genDays, setGenDays] = useState(365);
   const [genIssuedTo, setGenIssuedTo] = useState('');
+  const [genPhone, setGenPhone] = useState('');
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [copiedKeyIndex, setCopiedKeyIndex] = useState<string | null>(null);
@@ -117,11 +120,12 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
 
   const handleSuperAdminGenerate = (e: React.FormEvent) => {
     e.preventDefault();
-    const res = generateLicenseAsAdmin(genTier, genDays, genIssuedTo);
+    const res = generateLicenseAsAdmin(genTier, genDays, genIssuedTo, genPhone);
     if (res.success && res.license) {
       setGeneratedKey(res.license.key);
       showToast('success', res.message);
       setGenIssuedTo('');
+      setGenPhone('');
     } else {
       showToast('error', res.message);
     }
@@ -496,7 +500,7 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
                   Formulir Pembuatan Kunci Lisensi Baru
                 </span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">
                       Paket Lisensi
@@ -509,6 +513,7 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
                       <option value="PRO">Advokat Pro (5 Device)</option>
                       <option value="FIRM_ENTERPRISE">Law Firm Enterprise (15 Device)</option>
                       <option value="LIFETIME">Lifetime VIP (50 Device)</option>
+                      <option value="TRIAL">Akun Demo Terbatas (1 Device)</option>
                     </select>
                   </div>
 
@@ -521,6 +526,7 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
                       onChange={(e) => setGenDays(Number(e.target.value))}
                       className="w-full rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                     >
+                      <option value={7}>7 Hari</option>
                       <option value={30}>30 Hari (1 Bulan)</option>
                       <option value={90}>3 Bulan</option>
                       <option value={180}>6 Bulan</option>
@@ -538,15 +544,31 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
                       type="text"
                       value={genIssuedTo}
                       onChange={(e) => setGenIssuedTo(e.target.value)}
-                      placeholder="mis. Kantor Hukum X"
+                      placeholder="mis. Advokat Budi / Kantor X"
                       className="w-full rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">
+                      No. HP / Kunci WA (Kunci Akses)
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        value={genPhone}
+                        onChange={(e) => setGenPhone(e.target.value)}
+                        placeholder="mis. 081234567890"
+                        className="w-full rounded-xl border border-slate-300 bg-white pl-8 pr-2.5 py-1.5 text-xs font-medium text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      />
+                    </div>
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-rose-700 py-2.5 text-xs font-bold text-white shadow hover:bg-rose-800 transition flex items-center justify-center gap-1.5 mt-2"
+                  className="w-full rounded-xl bg-rose-700 py-2.5 text-xs font-bold text-white shadow hover:bg-rose-800 transition flex items-center justify-center gap-1.5 mt-2 cursor-pointer"
                 >
                   <Zap className="h-3.5 w-3.5" />
                   <span>Terbitkan Kunci Lisensi Resmi</span>
@@ -581,9 +603,27 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
 
               {/* List of Issued Licenses */}
               <div className="space-y-3 pt-2">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider block">
-                  Daftar Lisensi yang Diterbitkan ({issuedLicenses.length})
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider block">
+                    Daftar Lisensi yang Diterbitkan ({issuedLicenses.length})
+                  </span>
+
+                  {issuedLicenses.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm('Apakah Anda yakin ingin MENGHAPUS SEMUA lisensi terdaftar?')) {
+                          const res = clearAllLicensesAsAdmin();
+                          showToast(res.success ? 'success' : 'error', res.message);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 transition cursor-pointer"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      <span>Hapus Semua</span>
+                    </button>
+                  )}
+                </div>
 
                 <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                   {issuedLicenses.length === 0 ? (
@@ -602,6 +642,11 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
                             <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-300">
                               {lic.tier}
                             </span>
+                            {lic.phoneNumber && (
+                              <span className="rounded bg-emerald-100 px-1.5 py-0.2 text-[9px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-mono">
+                                WA: {lic.phoneNumber}
+                              </span>
+                            )}
                           </div>
                           <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">
                             Untuk: <strong>{lic.issuedTo}</strong> · Exp:{' '}
@@ -609,18 +654,47 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
                           </p>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleCopyKey(lic.key)}
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                          title="Salin Kunci"
-                        >
-                          {copiedKeyIndex === lic.key ? (
-                            <Check className="h-3.5 w-3.5 text-emerald-600" />
-                          ) : (
-                            <Copy className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyKey(lic.key)}
+                            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer"
+                            title="Salin Kunci Lisensi"
+                          >
+                            {copiedKeyIndex === lic.key ? (
+                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                          {lic.phoneNumber && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyKey(lic.phoneNumber!)}
+                              className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition cursor-pointer"
+                              title="Salin No. HP Kunci"
+                            >
+                              {copiedKeyIndex === lic.phoneNumber ? (
+                                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              ) : (
+                                <Phone className="h-3.5 w-3.5" />
+                              )}
+                            </button>
                           )}
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Hapus lisensi ${lic.key} (${lic.issuedTo})?`)) {
+                                const res = deleteLicenseAsAdmin(lic.key);
+                                showToast(res.success ? 'success' : 'error', res.message);
+                              }
+                            }}
+                            className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer"
+                            title="Hapus Lisensi Ini"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
