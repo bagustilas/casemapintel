@@ -46,6 +46,7 @@ export function CaseDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStage, setFilterStage] = useState('ALL');
   const [importStatus, setImportStatus] = useState<{ success: boolean; msg: string } | null>(null);
+  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -214,6 +215,20 @@ export function CaseDashboard() {
         </div>
       )}
 
+      {/* Action Notification Alert */}
+      {actionMessage && (
+        <div
+          className={`flex items-center gap-2 rounded-xl p-3.5 text-xs font-semibold animate-in fade-in ${
+            actionMessage.type === 'success'
+              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200'
+              : 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200'
+          }`}
+        >
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          <span>{actionMessage.text}</span>
+        </div>
+      )}
+
       {/* Search & Filter Bar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -379,8 +394,19 @@ export function CaseDashboard() {
 
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => deleteCase(item.id)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 transition"
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Apakah Anda yakin ingin menghapus perkara "${item.title || 'Data Contoh'}"?`)) {
+                          await deleteCase(item.id);
+                          setActionMessage({
+                            type: 'success',
+                            text: `Berkas perkara "${item.title || 'Data Contoh'}" berhasil dihapus.`,
+                          });
+                          setTimeout(() => setActionMessage(null), 3500);
+                        }
+                      }}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 transition cursor-pointer"
                       title="Hapus perkara"
                     >
                       <Trash2 className="h-4 w-4" />

@@ -118,9 +118,9 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
     }
   };
 
-  const handleSuperAdminGenerate = (e: React.FormEvent) => {
+  const handleSuperAdminGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = generateLicenseAsAdmin(genTier, genDays, genIssuedTo, genPhone);
+    const res = await generateLicenseAsAdmin(genTier, genDays, genIssuedTo, genPhone);
     if (res.success && res.license) {
       setGeneratedKey(res.license.key);
       showToast('success', res.message);
@@ -611,9 +611,9 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
                   {issuedLicenses.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         if (confirm('Apakah Anda yakin ingin MENGHAPUS SEMUA lisensi terdaftar?')) {
-                          const res = clearAllLicensesAsAdmin();
+                          const res = await clearAllLicensesAsAdmin();
                           showToast(res.success ? 'success' : 'error', res.message);
                         }
                       }}
@@ -683,9 +683,9 @@ export function AccountModal({ isOpen, onClose, defaultTab = 'profile' }: Accoun
                           )}
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
                               if (confirm(`Hapus lisensi ${lic.key} (${lic.issuedTo})?`)) {
-                                const res = deleteLicenseAsAdmin(lic.key);
+                                const res = await deleteLicenseAsAdmin(lic.key);
                                 showToast(res.success ? 'success' : 'error', res.message);
                               }
                             }}

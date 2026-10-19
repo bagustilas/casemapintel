@@ -96,9 +96,9 @@ export default function SuperAdminPage() {
     }
   };
 
-  const handleGenerateLicense = (e: React.FormEvent) => {
+  const handleGenerateLicense = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = generateLicenseAsAdmin(genTier, genDays, genIssuedTo, genPhone);
+    const res = await generateLicenseAsAdmin(genTier, genDays, genIssuedTo, genPhone);
     if (res.success && res.license) {
       setGeneratedLic(res.license);
       showToast('success', res.message);
@@ -517,9 +517,9 @@ export default function SuperAdminPage() {
             {issuedLicenses.length > 0 && (
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (confirm('Apakah Anda yakin ingin MENGHAPUS SEMUA daftar lisensi yang telah diterbitkan?')) {
-                    const res = clearAllLicensesAsAdmin();
+                    const res = await clearAllLicensesAsAdmin();
                     showToast(res.success ? 'success' : 'error', res.message);
                   }
                 }}
@@ -660,9 +660,9 @@ export default function SuperAdminPage() {
                             </button>
                           )}
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (confirm(`Hapus lisensi ${lic.key} (${lic.issuedTo})?`)) {
-                                const res = deleteLicenseAsAdmin(lic.key);
+                                const res = await deleteLicenseAsAdmin(lic.key);
                                 showToast(res.success ? 'success' : 'error', res.message);
                               }
                             }}

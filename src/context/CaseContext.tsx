@@ -135,12 +135,14 @@ export function CaseProvider({ children }: { children: React.ReactNode }) {
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
       let cases: CaseData[] = [];
-      if (stored) {
-        cases = JSON.parse(stored);
-      }
-
-      if (cases.length === 0) {
-        // Pre-populate with sample case for great out-of-the-box experience
+      if (stored !== null) {
+        try {
+          cases = JSON.parse(stored);
+        } catch {
+          cases = [];
+        }
+      } else {
+        // Only on the very first fresh launch when key never existed
         cases = [SAMPLE_CASE_EMBEZZLEMENT];
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cases));
       }
@@ -153,7 +155,15 @@ export function CaseProvider({ children }: { children: React.ReactNode }) {
         const found = cases.find((c) => c.id === activeId);
         if (found) {
           setCurrentCase(found);
+        } else if (cases.length > 0) {
+          setCurrentCase(cases[0]);
+          localStorage.setItem(CURRENT_CASE_ID_KEY, cases[0].id);
+        } else {
+          setCurrentCase(createEmptyCase(session?.licenseKey));
+          localStorage.removeItem(CURRENT_CASE_ID_KEY);
         }
+      } else if (cases.length > 0) {
+        setCurrentCase(cases[0]);
       }
     } catch (e) {
       console.error('Error loading cases from storage:', e);
@@ -306,7 +316,10 @@ export function CaseProvider({ children }: { children: React.ReactNode }) {
     const supabase = getSupabaseClient();
     if (supabase && session?.isCloudSyncActive) {
       try {
-        await supabase.from('cases').delete().eq('id', id);
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        if (isUuid) {
+          await supabase.from('cases').delete().eq('id', id);
+        }
       } catch (e) {
         console.warn('Failed to delete case from Supabase:', e);
       }
@@ -315,8 +328,10 @@ export function CaseProvider({ children }: { children: React.ReactNode }) {
     if (currentCase.id === id) {
       if (nextList.length > 0) {
         setCurrentCase(nextList[0]);
+        localStorage.setItem(CURRENT_CASE_ID_KEY, nextList[0].id);
       } else {
         setCurrentCase(createEmptyCase(session?.licenseKey));
+        localStorage.removeItem(CURRENT_CASE_ID_KEY);
       }
       setViewMode('dashboard');
     }

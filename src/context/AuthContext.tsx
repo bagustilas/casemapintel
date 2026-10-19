@@ -8,6 +8,7 @@ import {
   generateNewLicenseKey,
   deleteIssuedLicense,
   clearAllIssuedLicenses,
+  normalizePhoneNumber,
   PRESET_LICENSES,
   isSuperAdminUser,
   SUPERADMIN_SECRET_PIN,
@@ -275,12 +276,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: false, message: 'PIN / Kunci Super Admin tidak valid.' };
   };
 
-  const generateLicenseAsAdmin = (
+  const generateLicenseAsAdmin = async (
     tier: LicenseTier,
     durationDays: number,
     issuedTo: string,
     phoneNumber?: string
-  ): { success: boolean; license?: LicenseInfo; message: string } => {
+  ): Promise<{ success: boolean; license?: LicenseInfo; message: string }> => {
     if (!isSuperAdmin) {
       return {
         success: false,
@@ -290,19 +291,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const newLic = generateNewLicenseKey(tier, durationDays, issuedTo, phoneNumber);
     setIssuedLicenses(getIssuedLicensesList());
+
+    // Connect to Supabase and create/upsert user_profiles automatically
+    const cleanPhone = phoneNumber ? normalizePhoneNumber(phoneNumber) : '';
+    const supabase = getSupabaseClient();
+    if (supabase && cleanPhone) {
+      try {
+        await supabase.from('user_profiles').upsert(
+          {
+            whatsapp_number: cleanPhone,
+            license_key: newLic.key,
+            full_name: issuedTo?.trim() || `Pengguna (${cleanPhone})`,
+            organization: issuedTo?.trim() || (tier === 'FIRM_ENTERPRISE' ? 'Law Firm Enterprise' : 'Kantor Hukum & Penegak Hukum'),
+            license_expiry: newLic.expiresAt,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'whatsapp_number' }
+        );
+      } catch (e) {
+        console.warn('Supabase profile sync error during license generation:', e);
+      }
+    }
+
     return {
       success: true,
       license: newLic,
-      message: `Kunci lisensi ${newLic.label} berhasil dibuat oleh Super Admin!`,
+      message: `Kunci lisensi ${newLic.label} berhasil dibuat oleh Super Admin${cleanPhone ? ' dan profil pengguna terhubung ke Supabase' : ''}!`,
     };
   };
 
-  const deleteLicenseAsAdmin = (key: string): { success: boolean; message: string } => {
+  const deleteLicenseAsAdmin = async (key: string): Promise<{ success: boolean; message: string }> => {
     if (!isSuperAdmin) {
       return {
         success: false,
         message: 'Akses Ditolak: Hanya Super Admin yang dapat menghapus kunci lisensi.',
       };
+    }
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('user_profiles').delete().eq('license_key', key);
+      } catch (e) {
+        console.warn('Supabase profile delete error:', e);
+      }
     }
 
     deleteIssuedLicense(key);
@@ -313,7 +345,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
-  const clearAllLicensesAsAdmin = (): { success: boolean; message: string } => {
+  const clearAllLicensesAsAdmin = async (): Promise<{ success: boolean; message: string }> => {
     if (!isSuperAdmin) {
       return {
         success: false,
